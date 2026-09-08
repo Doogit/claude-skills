@@ -35,12 +35,14 @@ bash install.sh --target all --force
 
 Existing pieces are skipped unless `--force` / `-Force` is supplied. Force overlays the
 packaged files without nesting skill folders or deleting extra local files. Back up local
-customizations before an update. `CLAUDE_HOME` and `CODEX_HOME` override the default
-`~/.claude` and `~/.codex` destinations. No settings, credentials, model aliases, or
+customizations before an update. `CLAUDE_HOME` overrides the Claude default `~/.claude`;
+`AGENTS_HOME` overrides Codex's agent home (default `~/.agents`). Codex installs to its
+user discovery location, `~/.agents/skills`; its `~/.codex` settings directory is not
+modified. No settings, credentials, model aliases, or
 permission allowlists are changed. Restart the selected application after installation.
 
 For a manual install, copy `skills/`, `workflows/`, and `agents/` into your Claude home;
-copy the contents of `codex/skills/` into your Codex home's `skills/` directory.
+copy the contents of `codex/skills/` into `~/.agents/skills/`.
 
 ## Prerequisites and limits
 

@@ -44,9 +44,11 @@ if [ "$TARGET" = claude ] || [ "$TARGET" = all ]; then
   done
 fi
 if [ "$TARGET" = codex ] || [ "$TARGET" = all ]; then
-  CODEX_DEST="${CODEX_HOME:-$HOME/.codex}"
+  # Codex discovers user-installed skills from ~/.agents/skills. Keep ~/.codex
+  # configuration untouched; it is not a skill-discovery location.
+  AGENTS_DEST="${AGENTS_HOME:-$HOME/.agents}"
   for rel in skills/dynamic-workflows-codex skills/session-orchestration; do
-    copy_piece "$SRC/codex/$rel" "$CODEX_DEST/$rel"
+    copy_piece "$SRC/codex/$rel" "$AGENTS_DEST/$rel"
   done
 fi
 echo "Done. Restart the selected agent application to refresh skill discovery."

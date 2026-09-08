@@ -30,9 +30,11 @@ if ($Target -in @("claude", "all")) {
   }
 }
 if ($Target -in @("codex", "all")) {
-  $codexDest = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
+  # Codex discovers user-installed skills from ~/.agents/skills. Keep ~/.codex
+  # configuration untouched; it is not a skill-discovery location.
+  $agentsDest = if ($env:AGENTS_HOME) { $env:AGENTS_HOME } else { Join-Path $HOME ".agents" }
   foreach ($rel in @("skills/dynamic-workflows-codex", "skills/session-orchestration")) {
-    Install-Piece (Join-Path $PSScriptRoot "codex/$rel") (Join-Path $codexDest $rel)
+    Install-Piece (Join-Path $PSScriptRoot "codex/$rel") (Join-Path $agentsDest $rel)
   }
 }
 Write-Host "Done. Restart the selected agent application to refresh skill discovery."

@@ -20,27 +20,39 @@ for shell, command in [
     directory = Path(tempfile.mkdtemp(prefix=shell + "-", dir=base))
     env = os.environ.copy()
     env["CLAUDE_HOME"] = str(directory / "claude")
-    env["CODEX_HOME"] = str(directory / "codex")
+    env["AGENTS_HOME"] = str(directory / ".agents")
     def run(extra=()):
         result = subprocess.run(command + list(extra), env=env, capture_output=True, text=True)
         assert result.returncode == 0, (shell, result.stdout, result.stderr)
     run()
     for item in manifest["files"]:
         relative = item["path"]
-        destination = directory / ("codex" if relative.startswith("codex/") else "claude") / relative.removeprefix("codex/")
+        destination = (
+            directory / ".agents" / "skills" / relative.removeprefix("codex/skills/")
+            if relative.startswith("codex/skills/")
+            else directory / "claude" / relative
+        )
         assert destination.read_bytes() == (ROOT / relative).read_bytes(), (shell, relative)
-    target = directory / "claude/skills/dynamic-workflows-codex/SKILL.md"
-    target.write_text("local customization")
-    extra = target.parent / "local.txt"
-    extra.write_text("keep")
-    config = directory / "codex/config.toml"
+    claude_target = directory / "claude/skills/dynamic-workflows-codex/SKILL.md"
+    codex_target = directory / ".agents/skills/dynamic-workflows-codex/SKILL.md"
+    claude_target.write_text("local Claude customization")
+    codex_target.write_text("local Codex customization")
+    claude_extra = claude_target.parent / "local.txt"
+    codex_extra = codex_target.parent / "local.txt"
+    claude_extra.write_text("keep Claude")
+    codex_extra.write_text("keep Codex")
+    config = directory / ".codex/config.toml"
+    config.parent.mkdir()
     config.write_text("preserve config")
     run()
-    assert target.read_text() == "local customization"
+    assert claude_target.read_text() == "local Claude customization"
+    assert codex_target.read_text() == "local Codex customization"
     run(["-Force" if shell == "powershell" else "--force"])
-    assert target.read_bytes() == (ROOT / "skills/dynamic-workflows-codex/SKILL.md").read_bytes()
-    assert extra.read_text() == "keep" and config.read_text() == "preserve config"
-    assert not (target.parent / "dynamic-workflows-codex").exists()
+    assert claude_target.read_bytes() == (ROOT / "skills/dynamic-workflows-codex/SKILL.md").read_bytes()
+    assert codex_target.read_bytes() == (ROOT / "codex/skills/dynamic-workflows-codex/SKILL.md").read_bytes()
+    assert claude_extra.read_text() == "keep Claude" and codex_extra.read_text() == "keep Codex"
+    assert config.read_text() == "preserve config"
+    assert not (claude_target.parent / "dynamic-workflows-codex").exists()
     print(shell + ": fresh, repeat, force and local extras/config preservation PASS")
 archives = []
 for _ in range(2):
