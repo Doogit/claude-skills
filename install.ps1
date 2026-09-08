@@ -1,29 +1,40 @@
-# Install these Claude Code skills/workflows/agents into ~/.claude/.
-# Usage: .\install.ps1 [-Force]   (-Force overwrites existing files)
-param([switch]$Force)
-
+# Usage: .\install.ps1 [-Target claude|codex|all] [-Force]
+param([ValidateSet("claude", "codex", "all")][string]$Target = "claude", [switch]$Force)
 $ErrorActionPreference = "Stop"
-$src  = $PSScriptRoot
-$dest = if ($env:CLAUDE_HOME) { $env:CLAUDE_HOME } else { Join-Path $HOME ".claude" }
-
-function Install-Item($rel) {
-  $from = Join-Path $src  $rel
-  $to   = Join-Path $dest $rel
-  New-Item -ItemType Directory -Force -Path (Split-Path $to) | Out-Null
-  if ((Test-Path $to) -and -not $Force) {
-    Write-Host "  skip (exists): $rel   [-Force to overwrite]"
+function Install-Piece([string]$Source, [string]$Destination) {
+  if ((Test-Path -LiteralPath $Destination) -and -not $Force) {
+    Write-Host "Skip existing: $Destination (-Force to update)"
+    return
+  }
+  if (Test-Path -LiteralPath $Source -PathType Container) {
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
+      Install-Piece $item.FullName (Join-Path $Destination $item.Name)
+    }
   } else {
-    Copy-Item $from $to -Recurse -Force
-    Write-Host "  installed: $rel"
+    New-Item -ItemType Directory -Force -Path (Split-Path $Destination) | Out-Null
+    Copy-Item -LiteralPath $Source -Destination $Destination -Force
+    Write-Host "Installed: $Destination"
   }
 }
-
-Write-Host "Installing into $dest"
-Install-Item "skills/dynamic-workflows-plan"
-Install-Item "skills/dynamic-workflows-codex"
-Install-Item "workflows/dynamic-workflows-codex.js"
-Install-Item "agents/codex-worker.md"
-
-Write-Host ""
-Write-Host "Done. Restart Claude Code (or reload skills)."
-Write-Host "For the Codex variant: run 'codex login' and add Bash(codex exec:*) to permissions.allow in ~/.claude/settings.json."
+$required = @()
+if ($Target -in @("claude", "all")) { $required += @("skills/dynamic-workflows-plan", "skills/dynamic-workflows-codex", "workflows/dynamic-workflows-codex.js", "agents/codex-worker.md") }
+if ($Target -in @("codex", "all")) { $required += @("codex/skills/dynamic-workflows-codex", "codex/skills/session-orchestration") }
+foreach ($rel in $required) {
+  if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot $rel))) { throw "Package missing $rel. Choose the matching target or use the full repository." }
+}
+if ($Target -in @("claude", "all")) {
+  $claudeDest = if ($env:CLAUDE_HOME) { $env:CLAUDE_HOME } else { Join-Path $HOME ".claude" }
+  foreach ($rel in @("skills/dynamic-workflows-plan", "skills/dynamic-workflows-codex", "workflows/dynamic-workflows-codex.js", "agents/codex-worker.md")) {
+    Install-Piece (Join-Path $PSScriptRoot $rel) (Join-Path $claudeDest $rel)
+  }
+}
+if ($Target -in @("codex", "all")) {
+  # Codex discovers user-installed skills from ~/.agents/skills. Keep ~/.codex
+  # configuration untouched; it is not a skill-discovery location.
+  $agentsDest = if ($env:AGENTS_HOME) { $env:AGENTS_HOME } else { Join-Path $HOME ".agents" }
+  foreach ($rel in @("skills/dynamic-workflows-codex", "skills/session-orchestration")) {
+    Install-Piece (Join-Path $PSScriptRoot "codex/$rel") (Join-Path $agentsDest $rel)
+  }
+}
+Write-Host "Done. Restart the selected agent application to refresh skill discovery."

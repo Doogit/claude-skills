@@ -1,68 +1,97 @@
-# claude-skills
+# Workflow skills for Claude Code and Codex
 
-Shareable [Claude Code](https://claude.com/claude-code) skills, workflows, and agents I use in
-my own builds. Each lives in the directory Claude Code loads it from, so installing is copying
-folders into `~/.claude/`.
+The skills I use to plan and run work across coding agents. Refreshed from my installed
+files on September 8, 2026, with the public adaptations listed below.
 
-Right now this holds the two **Dynamic Workflows** skills — the write-up is at
-[doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
+The write-up is at [doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
 
-## What's here
+## Choose a workflow
 
-| Piece | What it does |
+| Package | What it does |
 |---|---|
-| `skills/dynamic-workflows-plan/` | Turns a plan into one structured for a Dynamic Workflows orchestrator: file-disjoint units, per-unit dispatch headers, named gates, self-contained work orders. Extends `ce-plan`. No Codex dependency. |
-| `skills/dynamic-workflows-codex/` | Runs that plan as a fan-out where **Opus** decomposes, lightweight **Codex** workers implement each task in their own git worktree via `codex exec`, and **Sonnet** verifies and reports. Always pilots two tasks first; never auto-merges. |
-| `workflows/dynamic-workflows-codex.js` | The workflow script `dynamic-workflows-codex` runs. |
-| `agents/codex-worker.md` | The `codex-worker` shim agent — the non-reasoning plumbing that calls `codex exec` and returns its structured output verbatim. |
+| Claude: `skills/dynamic-workflows-plan/` | Adds dispatch contracts and dependency gates to a plan produced with the separately installed `ce-plan` skill. |
+| Claude: `skills/dynamic-workflows-codex/`, `workflows/`, `agents/` | Opus decomposes; a Haiku shim calls `codex exec`; Sonnet reviews. Terra/medium implements, high effort handles repairs. A two-task pilot precedes full execution. Passing tasks are committed on separate branches; nothing is pushed or merged. |
+| Native Codex: `codex/skills/dynamic-workflows-codex/` | Executes durable plans through native Codex workers. Uses available agent routing and tools, with optional bounded pilots and worktree-only delivery by default. |
+| Native Codex: `codex/skills/session-orchestration/` | Coordinates a session's planning, worker scope, review, and delivery. |
+
+The two `dynamic-workflows-codex` skills belong to different applications. Install them
+into their respective homes; do not copy the native skill over the Claude skill.
 
 ## Install
 
-**Script:** from the repo root,
+From a clone or extracted ZIP, choose a target. The default remains Claude for existing users.
 
-    ./install.sh      # macOS / Linux / Git Bash
-    .\install.ps1     # Windows PowerShell
+```bash
+bash install.sh --target claude
+bash install.sh --target codex
+bash install.sh --target all --force
+```
 
-It copies each piece into `~/.claude/` (skills, workflows, agents). It won't overwrite an
-existing file unless you pass `--force`.
+```powershell
+.\install.ps1 -Target claude
+.\install.ps1 -Target codex
+.\install.ps1 -Target all -Force
+```
 
-**Manual:**
+Existing pieces are skipped unless `--force` / `-Force` is supplied. Force overlays the
+packaged files without nesting skill folders or deleting extra local files. Back up local
+customizations before an update. `CLAUDE_HOME` overrides the Claude default `~/.claude`;
+`AGENTS_HOME` overrides Codex's agent home (default `~/.agents`). Codex installs to its
+user discovery location, `~/.agents/skills`; its `~/.codex` settings directory is not
+modified. No settings, credentials, model aliases, or
+permission allowlists are changed. Restart the selected application after installation.
 
-    skills/dynamic-workflows-plan/        ->  ~/.claude/skills/dynamic-workflows-plan/
-    skills/dynamic-workflows-codex/       ->  ~/.claude/skills/dynamic-workflows-codex/
-    workflows/dynamic-workflows-codex.js  ->  ~/.claude/workflows/dynamic-workflows-codex.js
-    agents/codex-worker.md                ->  ~/.claude/agents/codex-worker.md
+For a manual install, copy `skills/`, `workflows/`, and `agents/` into your Claude home;
+copy the contents of `codex/skills/` into `~/.agents/skills/`.
 
-Restart Claude Code (or reload skills) and both appear as `/dynamic-workflows-plan` and
-`/dynamic-workflows-codex`.
+## Prerequisites and limits
 
-## Prerequisites for the Codex variant
+- The Claude bridge requires a Claude Code runtime supporting its Workflow API and a
+  logged-in Codex CLI. Run the skill's preflight before execution. Model availability
+  varies: set `WORKER_MODEL`, `WORKER_EFFORT`, and `REPAIR_EFFORT` in the workflow to values
+  supported by your runtime. The included defaults describe my setup.
+- The planning skill extends `ce-plan`, which is not bundled. It also mentions `ce-work`
+  as a single-session alternative. Install those separately if using those paths.
+- Native execution requires Codex native collaboration tools. Follow your current agent
+  tool schema and routing rules. Referenced supporting skills, including
+  `worktree-coordination` and `git-ship` for their respective operations, are not bundled;
+  make them available before invoking those paths. Other optional review/planning skills
+  named in the procedures are also separate dependencies.
+- The bridge uses unattended `approval_policy="never"` with `workspace-write`. This
+  cannot grant permissions. Authorize the intended work before launching; denied actions
+  stop for resolution. The native workflow follows its own authorization contract.
+- A diff review is not a passing build. Run actual project checks in each task worktree.
+  With multiple dependencies, the bridge provides ordering but does not combine their
+  branches automatically. Integration and merge remain explicit steps.
 
-`dynamic-workflows-plan` needs nothing beyond Claude Code — it only produces a plan. The Codex
-executor needs two things:
+## Public adaptations
 
-1. **The Codex CLI, logged in.** Install it and run `codex login`. The workflow shells out to
-   `codex exec`, so add `Bash(codex exec:*)` to `permissions.allow` in `~/.claude/settings.json`
-   (a bare `Bash` entry also works).
-2. **A model alias to match.** The worker defaults to `gpt-5.6-luna` at `xhigh` reasoning effort.
-   Those are aliases in my own `~/.codex/config.toml`, **not** universal Codex model names. Map
-   the worker to whatever Codex model you have — edit the model / `WORKER_EFFORT` in
-   `workflows/dynamic-workflows-codex.js` and `agents/codex-worker.md`, or define matching aliases
-   in your `~/.codex/config.toml`.
+The native files are copied without content changes, with LF line endings. The Claude export retains the installed model
+configuration, dependency handling, and review flow, with these changes for sharing:
 
-## Two things to know before you trust a run
+- New worktrees use `git worktree add -b`; existing paths require ownership verification.
+  There is no branch reset or silent branch-name fallback.
+- Execution failures stop before review/repair; authorization denials are not automatically retried.
+  A clean target root is required before execution. Root-leak guidance preserves
+  changes and requires authorization before restoring or deleting root files.
+- Machine-specific hook/config claims and a private component name were removed from
+  the reference. Historical CLI evidence is labeled as historical; planning examples
+  are labeled as templates, and the missing `ce-plan` prerequisite is explicit.
 
-- **It never merges.** Each passing task lands committed on its own `dwc/<id>` branch in its own
-  worktree. You integrate through your normal gate/PR flow, in the order the report suggests.
-- **A diff-only `pass` is not green CI.** When a worktree has no installed dependencies, the
-  reviewer judges from the diff and can't run types/tests. Gate every "passed" branch with your
-  real typecheck and tests before merging — `npx --no-install tsc --noEmit` usually resolves deps
-  from the repo root without installing anything.
+These are instruction and packaging checks, not a new paid end-to-end agent benchmark.
+The [export manifest](EXPORT-MANIFEST.json) records hashes of both the installed inputs
+and the shipped files so the adaptations can be audited.
 
-Verified on codex-cli 0.150.1 and Claude Code 2.1.246. See each skill's `SKILL.md` / `reference.md`
-for the full procedure and the known failure modes (including the leak-to-root and false-green
-cases worth watching for).
+## Download bundles
+
+`python scripts/build_bundles.py --output <directory>` creates two reproducible archives:
+
+- `dynamic-workflows-skills.zip`: the Claude package.
+- `dynamic-workflows-codex-skills.zip`: the native Codex package.
+
+Both include this README, license, manifest, and installers. Select the archive's target
+when installing; use a repository clone for `--target all`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

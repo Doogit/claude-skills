@@ -1,12 +1,12 @@
 ---
 name: dynamic-workflows-codex
-description: Run an implementation plan file through a Claude Code dynamic workflow where Opus orchestrates and lightweight Codex models (gpt-5.6-luna @ xhigh) do the implementation via `codex exec`. Use when the user says "/dynamic-workflows-codex <plan>", "run this plan with codex workers", "have codex implement this plan", or points at a plan file and wants Codex to build it while Claude orchestrates and verifies. Always does a slice:2 pilot first, never auto-merges.
+description: Run an implementation plan file through a Claude Code dynamic workflow where Opus orchestrates and Codex models (gpt-5.6-terra @ medium) do the implementation via `codex exec`. Use when the user says "/dynamic-workflows-codex <plan>", "run this plan with codex workers", "have codex implement this plan", or points at a plan file and wants Codex to build it while Claude orchestrates and verifies. Always does a slice:2 pilot first, never auto-merges.
 ---
 
 # dynamic-workflows-codex
 
-Orchestrate a plan file: **Opus** decomposes it into dependency waves, **Codex** (`gpt-5.6-luna`
-at `xhigh` effort) implements each task in its own git worktree via `codex exec`, **Sonnet**
+Orchestrate a plan file: **Opus** decomposes it into dependency waves, **Codex** (`gpt-5.6-terra`
+at `medium` effort) implements each task in its own git worktree via `codex exec`, **Sonnet**
 verifies + adversarially reviews each diff, **Sonnet** synthesizes a merge report. It never
 auto-merges and never forks. Read `reference.md` (next to this file) for the verified
 `codex exec` flags, model ids, and schemas.
@@ -18,14 +18,14 @@ The saved workflow is `~/.claude/workflows/dynamic-workflows-codex.js`; the work
 
 ### 1. Preflight (do all before running anything)
 
-- **Codex auth:** run `codex exec -m gpt-5.6-luna --skip-git-repo-check -s read-only "reply OK" </dev/null`
+- **Codex auth:** run `codex exec -m gpt-5.6-terra --skip-git-repo-check -s read-only "reply OK" </dev/null`
   (or `codex login status` if available). If it errors on auth, stop and tell the user to `codex login`.
-- **Allowlist:** confirm `~/.claude/settings.json` `permissions.allow` contains `Bash(codex exec:*)`
-  (a bare `Bash` entry also suffices). If neither is present, add `Bash(codex exec:*)` to
-  `permissions.allow` and tell the user you did.
+- **Permissions:** confirm the intended CLI execution is authorized under the user's
+  current settings. If denied, stop and report what needs resolution. Do not edit
+  global settings or add permission allowlists.
 - **Plan file exists** and names identifiable tasks (files + acceptance). If it's too vague to
   decompose, say so and ask the user to sharpen it.
-- **Git state:** the plan's repo should be clean, or the user confirms it's OK to add worktrees.
+- **Git state:** require a clean target repo root before execution; preserve existing changes and stop if dirty.
   Worktrees are created under `<repo>/.worktrees/` (auto-added to `.git/info/exclude`).
 
 ### 2. Always run a slice:2 pilot first — then STOP
@@ -72,15 +72,16 @@ no implementation), `slice: <n>` (first n tasks).
   correct) implementation into the repo root instead of its worktree and then fail to commit, so the
   verifier reports the `dwc/<id>` branch as "clean / identical to main / worker did nothing" while the
   code is actually live in root — dirtying `main` and endangering any parallel session. If root is
-  dirty on a task's files, copy them into that task's worktree, commit there, and restore root
-  (`git restore <tracked>`; delete leaked untracked files only after copying them out).
+  dirty on a task's files, stop and preserve the changes. Compare against the pre-run
+  root status and establish ownership before copying anything. Do not restore or delete
+  root files without explicit authorization for those exact paths.
 - **Gate every "passed" branch before trusting it.** A diff-only `pass` verdict is NOT green CI —
   when no `verifyCmd` ran, the reviewer judged from the diff and cannot catch type/test failures
   (a task once passed review carrying 6 real `tsc` errors). If the repo root has `node_modules`,
   run from inside each passing worktree: `npx --no-install tsc --noEmit -p <tsconfig>` and
   `npx --no-install vitest run <touched tests>` (Node resolves deps by walking up to the root).
 - **Hand off to the user's normal gate/PR flow. Do NOT merge.** Each passing task is committed
-  on its own branch (`dwc/<id>`) in an independent worktree off HEAD; the user integrates in the
+  on its own branch (`dwc/<id>`) in a task worktree (single-dependency tasks start from their accepted dependency branch); the user integrates in the
   suggested order, running their own gates (tests/typecheck/lint) with deps installed. Failed
   tasks are left uncommitted in their worktree for rework.
 
@@ -104,8 +105,9 @@ The branches (`dwc/<id>`) remain until the user deletes them.
 
 ## Notes
 
-- **Worker model/effort:** `gpt-5.6-luna` at `xhigh`. Change the default in the workflow
-  (`WORKER_EFFORT`) or the agent file, not per-run.
+- **Worker model/effort:** `gpt-5.6-terra` at `medium`; repair rounds escalate to `high`.
+  Both live in the workflow (`WORKER_MODEL` / `WORKER_EFFORT` / `REPAIR_EFFORT`) and reach the
+  worker via the task contract — change them there, never in the agent file or per-run.
 - **Worktree deps:** worktrees have no `node_modules` of their own, but Node resolves deps by
   walking UP — when the repo root has `node_modules`, `npx --no-install tsc/vitest` run from
   inside the worktree and make `verifyCmd` a real gate. The decomposer prefers that shape; only

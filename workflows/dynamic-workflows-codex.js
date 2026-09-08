@@ -1,10 +1,10 @@
 export const meta = {
   name: 'dynamic-workflows-codex',
-  description: 'Point at a plan file: Opus decomposes it into dependency waves, lightweight Codex (gpt-5.6-luna @ xhigh) workers implement each task in its own git worktree via `codex exec`, Sonnet verifies + adversarially reviews each diff, Sonnet synthesizes a per-task merge report. Never auto-merges; never forks.',
-  whenToUse: 'You have a plan/spec file and want lightweight Codex models to do the implementation while Opus orchestrates and Sonnet verifies. Launch the orchestrator session from inside (or point args.plan at a file in) the target git repo — the repo root is auto-discovered from the plan location.',
+  description: 'Point at a plan file: Opus decomposes it into dependency waves, Codex (gpt-5.6-terra @ medium) workers implement each task in its own git worktree via `codex exec`, Sonnet verifies + adversarially reviews each diff, Sonnet synthesizes a per-task merge report. Never auto-merges; never forks.',
+  whenToUse: 'You have a plan/spec file and want Codex models to do the implementation while Opus orchestrates and Sonnet verifies. Launch the orchestrator session from inside (or point args.plan at a file in) the target git repo — the repo root is auto-discovered from the plan location.',
   phases: [
     { title: 'Decompose', detail: 'Opus reads the plan -> schema-validated tasks[] + dependency waves + repo root' },
-    { title: 'Implement', detail: 'Codex workers (gpt-5.6-luna @ xhigh) implement each task, one worktree per task' },
+    { title: 'Implement', detail: 'Codex workers (gpt-5.6-terra @ medium) implement each task, one worktree per task' },
     { title: 'Verify', detail: 'Sonnet runs acceptance checks + adversarial diff review; one repair round on failure' },
     { title: 'Synthesize', detail: 'Sonnet merges results into per-task status + suggested merge order (no auto-merge)' },
   ],
@@ -132,7 +132,9 @@ const REPORT_SCHEMA = {
 
 // ---- Helpers -------------------------------------------------------------
 
-const WORKER_EFFORT = 'xhigh' // codex workers default to gpt-5.6-luna @ extra-high effort
+const WORKER_MODEL = 'gpt-5.6-terra' // single knob — passed to the worker via the task contract
+const WORKER_EFFORT = 'medium'
+const REPAIR_EFFORT = 'high' // repair rounds escalate effort — the model already failed once at WORKER_EFFORT
 
 function worktreeOf(repoRoot, id) {
   return repoRoot + '/.worktrees/dwc-' + id
@@ -146,7 +148,8 @@ function workerPrompt(t, repoRoot, findings, base) {
     branch: 'dwc/' + t.id,
     base: base || 'HEAD',
     sandbox: 'workspace-write',
-    effort: WORKER_EFFORT,
+    model: WORKER_MODEL,
+    effort: findings ? REPAIR_EFFORT : WORKER_EFFORT,
     instructions:
       t.prompt +
       '\n\nFiles in scope: ' + (t.files || []).join(', ') +
@@ -162,27 +165,14 @@ function workerPrompt(t, repoRoot, findings, base) {
   )
 }
 
-// Concurrent `codex exec ... approval_policy=never` launches can lose a race on the
-// permission gate ("requires explicit user authorization"), which yields status=failed
-// with an EMPTY worktree (no code written). That is transient contention, not a task
-// failure — retry it (bounded) so multi-task waves self-heal without force-serializing.
-const CODEX_AUTH_DENIAL = /requires explicit user authorization/i
+// Authorization failures are returned to the caller for resolution, never retried here.
 async function implement(t, repoRoot, phase, findings, base) {
-  const opts = {
+  return await agent(workerPrompt(t, repoRoot, findings, base), {
     agentType: 'codex-worker',
     label: findings ? t.id + ':repair' : t.id,
     phase,
     schema: RESULT_SCHEMA,
-  }
-  let res = null
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    res = await agent(workerPrompt(t, repoRoot, findings, base), opts)
-    if (!res) return res
-    const denied = res.status === 'failed' && CODEX_AUTH_DENIAL.test(res.stderr_tail || '')
-    if (!denied) return res
-    if (attempt < 5) log('codex authorization race on ' + t.id + ' (attempt ' + attempt + '/5) — retrying')
-  }
-  return res
+  })
 }
 
 async function verify(t, repoRoot, impl) {
@@ -238,7 +228,7 @@ async function commitTask(t, repoRoot) {
 // then fail to commit, so the branch looks empty while live code sits in root (dirtying main).
 async function rootScan(repoRoot) {
   return await agent(
-    'Detect leaked edits in a git repo ROOT. Run exactly: git -C "' + repoRoot + '" status --porcelain\n' +
+    'Inspect dirty paths in a git repo ROOT. Run exactly: git -C "' + repoRoot + '" status --porcelain\n' +
     'Ignore any path under .worktrees/ (those are the task worktrees, expected).\n' +
     'Return leaked=true if ANY other path is dirty (staged, unstaged, or untracked), dirty[] = those ' +
     'porcelain lines verbatim, and porcelain = the full raw output. leaked=false if root is otherwise clean.',
@@ -251,6 +241,8 @@ async function runTask(t, repoRoot, base) {
   const impl = await implement(t, repoRoot, 'Implement', null, base)
   if (!impl) return { task: t, impl: null, verdict: null, status: 'no-result' }
 
+  if (impl.status !== 'ok') return { task: t, impl, verdict: null, status: 'fail' }
+
   let verdict = await verify(t, repoRoot, impl)
   let finalImpl = impl
 
@@ -259,6 +251,7 @@ async function runTask(t, repoRoot, base) {
       .map(f => '- ' + f.summary + (f.file ? ' [' + f.file + ']' : '') + (f.suggestion ? ' -> ' + f.suggestion : ''))
       .join('\n')
     const repair = await implement(t, repoRoot, 'Verify', findingsText || 'Address the reviewer findings.', base)
+    if (!repair || repair.status !== 'ok') return { task: t, impl: repair, verdict, status: 'fail' }
     if (repair) {
       finalImpl = repair
       verdict = await verify(t, repoRoot, repair)
@@ -280,7 +273,7 @@ const planPath = args && args.plan
 if (!planPath) throw new Error('args.plan (path to the plan file) is required')
 
 const decomp = await agent(
-  'You are decomposing an implementation plan into independent tasks for lightweight coding ' +
+  'You are decomposing an implementation plan into independent tasks for coding ' +
   'workers (Codex) that have ZERO conversation context and cannot see this plan or chat.\n\n' +
   'Steps:\n' +
   '1. Read the plan file at: ' + planPath + ' (use the Read tool; read any repo files it references).\n' +
@@ -345,6 +338,11 @@ if (args && args.dryRun) {
 }
 
 // Implement + Verify, wave by wave (waves are sequential; tasks within a wave run concurrently).
+const initialRoot = await rootScan(repoRoot)
+if (!initialRoot || initialRoot.leaked !== false) {
+  return { error: 'Target root must be clean before execution; preserve existing changes.', root_state: initialRoot }
+}
+
 phase('Implement')
 const results = []
 const statusById = {}
