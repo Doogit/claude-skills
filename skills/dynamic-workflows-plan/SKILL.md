@@ -15,6 +15,10 @@ research, implementation units, test scenarios, dependency order) by following `
 **Dynamic-Workflows structuring layer** below. The DW layer is the value-add; the substance still comes from
 `ce-plan`'s quality bar.
 
+Before planning, verify the separately installed `ce-plan` skill is available. If it is
+missing, report that prerequisite instead of inventing its procedure. Contract examples
+are synthetic templates; replace their identifiers and commands for the target project.
+
 ## When to use
 
 - The plan will be executed by a **`Workflow`** (fan-out of subagents), not a single interactive session.

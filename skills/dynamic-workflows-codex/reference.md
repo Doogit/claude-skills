@@ -1,38 +1,31 @@
-# dynamic-workflows-codex — reference
+# dynamic-workflows-codex â€” reference
 
-Verified on 2026-08-27 on this machine. Do not hardcode from memory — re-run Step 0 if the
-Codex or Claude version changes.
+This public export was refreshed on September 8, 2026. Before execution, run the
+skill's preflight capability checks against your installed Claude Code and Codex CLI.
+The original local smoke tests used codex-cli 0.150.1 and Claude Code 2.1.246;
+they are historical evidence, not a compatibility guarantee for this export.
 
-## Verified environment
+## Worker configuration
 
-| Thing | Value (verified) |
-|---|---|
-| `claude --version` | 2.1.246 — supports `workflowSizeGuideline` (>=2.1.219) |
-| `codex --version` | codex-cli 0.150.1 |
-| `CLAUDE_CODE_SUBAGENT_MODEL` | NOT set — per-agent `model:` routing works |
-| agent-model-guard hook | denies `fork` subagents, `explore`+opus, and generic+no-model. Our agents always pass an explicit `model` and use named agentType `codex-worker`, so none trip it. |
+Model availability depends on your account and runtime. Check the selected model
+before running; change `WORKER_MODEL`, `WORKER_EFFORT`, and `REPAIR_EFFORT` in the
+workflow if needed. The installer does not create aliases or modify global config.
 
-## Codex models (agent personas, from `~/.codex/config.toml`)
-
-| Model id | Tier | Use |
-|---|---|---|
-| `gpt-5.6-luna` | lightweight | **worker default** (this tool) |
-| `gpt-5.6-terra` | medium | heavier implementation |
-| `gpt-5.6-sol` | heavy | orchestration/hard reasoning (not used here) |
-
-Worker default = **`gpt-5.6-luna` at `model_reasoning_effort="xhigh"`** (extra-high).
+Worker default = **`gpt-5.6-terra` at `model_reasoning_effort="medium"`**. Set in the workflow
+(`WORKER_MODEL` / `WORKER_EFFORT`; repair rounds use `REPAIR_EFFORT="high"`) and passed to the
+worker through the task contract's `model` / `effort` fields.
 
 ## Verified `codex exec` invocation
 
-Smoke-tested (exit 0, valid JSON written to the `-o` file):
+Invocation pattern (verify support locally before use):
 
 ```
 codex exec \
-  -m gpt-5.6-luna \
+  -m gpt-5.6-terra \
   -C "<absolute worktree dir>" \
   -s workspace-write \
   -c approval_policy="never" \
-  -c model_reasoning_effort="xhigh" \
+  -c model_reasoning_effort="medium" \
   --skip-git-repo-check \
   --output-schema "<absolute schema.json>" \
   -o "<absolute last.json>" \
@@ -43,47 +36,48 @@ codex exec \
 Verified flag facts (from `codex exec --help`, codex-cli 0.150.1):
 
 - **Model:** `-m, --model <MODEL>`.
-- **Reasoning effort:** NOT a flag — set via `-c model_reasoning_effort="<low|medium|high|xhigh>"`.
+- **Reasoning effort:** NOT a flag â€” set via `-c model_reasoning_effort="<low|medium|high|xhigh>"`.
 - **Sandbox:** `-s, --sandbox <read-only|workspace-write|danger-full-access>`.
-- **Approval:** NOT a flag for exec — set via `-c approval_policy="never"`.
-- **Working dir:** `-C, --cd <DIR>` sets the workspace root (writes land here under workspace-write).
-- **Output schema:** `--output-schema <FILE>` — path must be **absolute** (relative paths failed to resolve).
-- **Final message:** `-o, --output-last-message <FILE>` — writes ONLY the final JSON message; read this, don't scrape stdout.
+- **Approval:** NOT a flag for exec â€” set via `-c approval_policy="never"`.
+- **Working dir:** `-C, --cd <DIR>` sets the working directory; verify actual write locations after execution.
+- **Output schema:** `--output-schema <FILE>` â€” path must be **absolute** (relative paths failed to resolve).
+- **Final message:** `-o, --output-last-message <FILE>` â€” writes ONLY the final JSON message; read this, don't scrape stdout.
 - **`--json`** emits JSONL events (not needed; `-o` is cleaner).
 - **`--skip-git-repo-check`** allows running outside a git repo (harmless inside a worktree).
 - **stdin:** close it (`</dev/null`) or codex blocks on "Reading additional input from stdin...".
 
-## Design note — why explicit worktrees instead of `isolation:'worktree'`
+## Design note â€” why explicit worktrees instead of `isolation:'worktree'`
 
 `isolation:'worktree'` creates a *fresh* worktree per `agent()` call and always targets the
 *session* repo. This tool needs (a) Implement -> Verify -> Repair to share ONE worktree per
 task, and (b) to target the repo that the *plan* lives in (which may differ from the session
-repo — e.g. a fixture). Per-call isolation can do neither. So each task gets a deterministic
+repo â€” e.g. a fixture). Per-call isolation can do neither. So each task gets a deterministic
 worktree `<repo_root>/.worktrees/dwc-<task_id>` on branch `dwc/<task_id>`, created by the
 first codex-worker and reused by verify/repair. `repo_root` is auto-discovered by the
 Decompose agent via `git rev-parse --show-toplevel` on the plan's directory (override with
 `args.repo`). `.worktrees/` is added to `.git/info/exclude` automatically.
 
-Consequence: worktrees branch from HEAD and are independent — a later task does NOT see an
-earlier task's uncommitted changes. Integration is manual, guided by the report's
-`suggested_merge_order`. Acceptance commands run inside a worktree, which has NO `node_modules`
-of its own — but see the next paragraph: root-level deps usually make real checks runnable anyway.
+Independent tasks start from HEAD. A task with one accepted dependency starts from
+that dependency's committed branch. Multiple dependencies currently impose ordering
+only: combine their changes through an explicit integration step before assuming they
+are all present. Integration is manual, guided by `suggested_merge_order`.
+Acceptance commands run in each task worktree; install project dependencies as required.
 
 **A diff-only `pass` verdict is NOT green CI (verified 2026-08-29).** When no `verifyCmd` runs
-(the common case — no deps in the worktree), the Sonnet reviewer judges from the diff alone and
-CANNOT catch `tsc`/lint/test-run failures. A task passed review while `CatalogEditor.tsx` carried
+(the common case â€” no deps in the worktree), the Sonnet reviewer judges from the diff alone and
+CANNOT catch `tsc`/lint/test-run failures. A task passed review while a component carried
 6 real type errors (null-narrowing in closures) that `tsc --noEmit` fails on. Always run the
 project typecheck/tests on a "passed" branch before trusting it. **You often can, in-worktree:**
 Node resolves `node_modules` by walking UP, so when `node_modules` lives at the *repo root*
 (the parent of `.worktrees/`), `cd <worktree> && npx --no-install vitest run <file>` and
 `npx --no-install tsc --noEmit -p <tsconfig>` resolve deps from the root and test the worktree's
-own edited files — no install needed. (`next lint`/`eslint` may still need a local install; defer
+own edited files â€” no install needed. (`next lint`/`eslint` may still need a local install; defer
 lint to CI.) When node_modules sits at the repo root, a `verifyCmd` of exactly this shape makes the
 gate real instead of advisory.
 
 **Commit-on-pass:** the codex-worker leaves its changes uncommitted (so the Sonnet verifier
 reviews the raw working tree). Only after a task's FINAL verdict is `pass` does a haiku step
-`git add -A && git commit` it on its `dwc/<id>` branch — making the branch diffable and PR-able.
+`git add -A && git commit` it on its `dwc/<id>` branch â€” making the branch diffable and PR-able.
 Failed tasks stay uncommitted for rework. Nothing is ever pushed or merged.
 
 **Verify sees NEW files (fixed 2026-08-29):** the verify step first runs `git add -A`, then diffs
@@ -94,30 +88,24 @@ Staging at review time is harmless (it does not commit) and makes untracked file
 reviewer. Symptom that this regressed: every new-file task fails with an "absent from the diff"
 finding while `git status` in the worktree shows the file as `??`.
 
-**Codex authorization race under concurrency (fixed 2026-08-29):** a wave runs `parallel(waveTasks)`,
-so N tasks launch `codex exec … approval_policy="never"` simultaneously. Under contention the
-permission gate denies some with `Permission denied: codex exec with approval_policy=never requires
-explicit user authorization` — the worker returns `status:"failed"`, `exit_code:1`, and an EMPTY
-worktree (no code written). Observed: 2-way concurrency is fine; 3-way denied 2 of 3. `implement()`
-now retries (bounded, ×5) on that specific stderr signature so waves self-heal without
-force-serializing codex. If it ever recurs at high fan-out, the next lever is a codex concurrency
-semaphore (cap 2) rather than more retries.
+**Authorization failures:** the worker uses unattended `approval_policy="never"`
+inside `workspace-write`. This does not grant permission or bypass a sandbox. Run only
+within previously authorized scope. Permission or authorization denials stop the public
+workflow; resolve them before retrying. No installer changes permission settings.
 
 **Codex writes leaked to repo root (seen 2026-08-30):** despite `-C <worktree>` +
 `-s workspace-write`, a task's file edits sometimes land in the **session/plan repo root** instead
 of its worktree, and the worker then cannot create the commit (`.git/index.lock` cannot be written
 under the sandbox). Symptom: the verifier reports the `dwc/<id>` branch as clean/identical to main
 ("worker did nothing" / empty worktree) while `git -C <repo-root> status` shows the task's files
-modified/untracked in **root**. The code is usually complete and correct — recover it into the
-task's worktree (copy the files across, then `git restore` the tracked ones in root and delete the
-leaked untracked ones) rather than re-running. Non-deterministic: in one slice:2 pilot, one task
-leaked to root while the other wrote correctly in-worktree. Because a leak dirties the shared root,
-**always postflight `git -C <repo-root> status` when any task reports an empty worktree** — a dirty
-root under a parallel session is a real hazard, not a cosmetic one.
+modified/untracked in **root**. Preserve the changes and compare with the pre-run root status. Establish ownership
+before copying files into a task worktree. Do not restore or delete root files without
+explicit authorization for the exact paths. Always inspect root status when a task
+reports an unexpectedly empty worktree.
 
 ## No forks / no session-context leakage
 
-- No `agent()` call uses `subagent_type:'fork'`; the `agent-model-guard` hook hard-denies forks anyway.
+- No `agent()` call uses `subagent_type:'fork'`. Follow any additional routing rules in your environment.
 - Every Codex worker gets a fully self-contained contract prompt. The Decompose agent is
   explicitly instructed to write task prompts for a model with zero conversation context.
 

@@ -64,7 +64,7 @@ Defined once; referenced by name from every Dispatch header.
   `vitest run test/detectors/<changed>.test.ts` · then full test. Skip UI build + smoke — no UI/daemon change.
 - G-PROBE (Phase-2 — the probe runs in the daemon boot-scan): G-DET plus `smoke` to prove boot still reconciles.
 - Known false-fails — do NOT report as regressions: sandbox `spawn EPERM` → rerun the identical command
-  elevated; always gate from inside the phase worktree (a wrong-root run mis-reports missing deps).
+  through the platform approval flow if elevation is needed; never bypass a denial. Always gate from inside the phase worktree (a wrong-root run mis-reports missing deps).
 ```
 
 The scoping is deliberate: Phase-1 changes no UI, so G-DET skips the UI build and the flaky UI perf gate —

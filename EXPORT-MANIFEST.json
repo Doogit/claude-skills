@@ -1,0 +1,67 @@
+{
+  "refreshed": "2026-09-08",
+  "source": "Installed global skill files; paths intentionally omitted",
+  "files": [
+    {
+      "path": "skills/dynamic-workflows-codex/reference.md",
+      "source_sha256": "89d5c7d785910d5b5547b3aee5edae8a6c504629ad748acb88bda1df5807e25c",
+      "export_sha256": "d8e80d87442ec19ba2d93c9b61f12f9e0c502d64995bcd415a9dd7d44b3d2d8c",
+      "adapted": true
+    },
+    {
+      "path": "skills/dynamic-workflows-codex/SKILL.md",
+      "source_sha256": "c8321e718d5fc06c34f33da43ff4b65166a75d8b86c655fa179ee97027bbba1e",
+      "export_sha256": "19fd4aa0872d468c7a307f784bf0c82c2a30b9855817dcca0edcbed4da6416dc",
+      "adapted": true
+    },
+    {
+      "path": "skills/dynamic-workflows-plan/references/dw-contract.md",
+      "source_sha256": "e464125ad4d73c88ee80ab2add08858aea3a0a711d773de0d28ffdbef365aa6d",
+      "export_sha256": "daea11062c92902c3970be083bc557c2aecb4fe09dcc5f526b6bac7188316037",
+      "adapted": true
+    },
+    {
+      "path": "skills/dynamic-workflows-plan/SKILL.md",
+      "source_sha256": "9d8f200d6f288ccc31aa49368a7f5cd9a1f89ec4502c956679190a9707f264e4",
+      "export_sha256": "bb52e788103f9a52d2be7c0d48b1bc87260a910c3ee6cbe2f33aa860e2cb5210",
+      "adapted": true
+    },
+    {
+      "path": "workflows/dynamic-workflows-codex.js",
+      "source_sha256": "20469bdaeef15385bdbef0d6c6cd0e6364b37d69164c3326f7745a48d2593ea7",
+      "export_sha256": "78e6be12508f96f9efeab6dc595dd106944394c1b394c12d48c837dec6d09417",
+      "adapted": true
+    },
+    {
+      "path": "agents/codex-worker.md",
+      "source_sha256": "59c116ec92f9fee1692cf1744a025727396bf0f95962d0db1168707d4240d85e",
+      "export_sha256": "fbfa89229dfb91b02944d9d39e91aed3d160d81c3d429c8be32f47f8a4919586",
+      "adapted": true
+    },
+    {
+      "path": "codex/skills/dynamic-workflows-codex/agents/openai.yaml",
+      "source_sha256": "0b93010d7532b65b4637ec2cbf1891fb5f561d8b43a0de18f989c7673e44d2c1",
+      "export_sha256": "c5af00a511f3e06748adfe571b29b34ca4433255af12ee41471b36534d364da8",
+      "adapted": true
+    },
+    {
+      "path": "codex/skills/dynamic-workflows-codex/references/contracts.md",
+      "source_sha256": "8dd98b6b6c7da22dc0768640d10391002318de63cd9d4dc78cb214176fe4829b",
+      "export_sha256": "acfadc686812e8709153cc47362606fd20d5d7ad0d24547ce756230d1f1d8517",
+      "adapted": true
+    },
+    {
+      "path": "codex/skills/dynamic-workflows-codex/SKILL.md",
+      "source_sha256": "e3b746b113a31bc9ed30b4f1164b3534c186e5a8045d4244465f5d1b1b9186d5",
+      "export_sha256": "b65490e1caad21bfe4d6f6ef24f07d11a185cb28889b0b0656747938f06d766d",
+      "adapted": true
+    },
+    {
+      "path": "codex/skills/session-orchestration/SKILL.md",
+      "source_sha256": "c819f55b0651c5c9a6216ecc33b1a010b4690c2403d55fedb9664b2528bd2d72",
+      "export_sha256": "c819f55b0651c5c9a6216ecc33b1a010b4690c2403d55fedb9664b2528bd2d72",
+      "adapted": false
+    }
+  ],
+  "line_endings": "Exported text uses LF."
+}

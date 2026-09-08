@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dynamic Workflows for Codex"
+  short_description: "Execute plans with dependency-aware native workers"
+  default_prompt: "Use $dynamic-workflows-codex to reconcile this plan, execute ready tasks with appropriately sized workers, and checkpoint verified progress."
