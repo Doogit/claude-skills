@@ -1,0 +1,70 @@
+{
+  "meta": { "repo": "ts-mini", "commit": null, "generated": "2026-10-14" },
+  "glossary": { "sync": "Pulling new item names from the remote API on a timer." },
+  "views": [
+    {
+      "id": "context", "level": 0, "title": "The big picture", "question": "What goes in, what comes out?",
+      "intro": "The item service keeps a list of items and fills it by [[sync]].",
+      "nodes": [
+        { "id": "user", "type": "actor", "label": "You", "does": "Adds items and reads the list.",
+          "evidence": [{ "file": "src/server.ts", "line": 8, "anchor": "pathname === \"/api/items\"" }] },
+        { "id": "app", "type": "system", "label": "Item service", "opens": "journey", "does": "Stores items and serves them.",
+          "evidence": [{ "file": "src/server.ts", "line": 22, "anchor": "server.listen(3000" }],
+          "inventory": ["bin:ts-mini", "listen:3000"] },
+        { "id": "remote", "type": "actor", "label": "Example API", "does": "Holds item names to copy.",
+          "evidence": [{ "file": "src/client.ts", "line": 5, "anchor": "fetch(\"https://api.example.com/v1/items\")" }] }
+      ],
+      "edges": [
+        { "from": "user", "to": "app", "label": "new items", "evidence": [{ "file": "src/server.ts", "line": 12, "anchor": "method === \"POST\"" }] },
+        { "from": "app", "to": "user", "label": "item list", "evidence": [{ "file": "src/server.ts", "line": 9, "anchor": "JSON.stringify(listItems())" }] },
+        { "from": "remote", "to": "app", "label": "item names", "evidence": [{ "file": "src/client.ts", "line": 5, "anchor": "api.example.com" }] }
+      ]
+    },
+    {
+      "id": "journey", "level": 1, "title": "The journey", "question": "What path does the data take?",
+      "intro": "Items arrive two ways and land in one table.",
+      "nodes": [
+        { "id": "user", "type": "actor", "label": "You", "does": "Adds items and reads the list.",
+          "evidence": [{ "file": "src/server.ts", "line": 8, "anchor": "pathname === \"/api/items\"" }] },
+        { "id": "remote", "type": "actor", "label": "Example API", "does": "Holds item names to copy.",
+          "evidence": [{ "file": "src/client.ts", "line": 5, "anchor": "api.example.com" }] },
+        { "id": "sync", "type": "process", "label": "Sync", "does": "Every minute, copies item names from the API.", "when": "every 60 s, first run 3 s after start",
+          "evidence": [{ "file": "src/jobs.ts", "line": 11, "anchor": "scheduleJob(\"sync.pull\"" }],
+          "inventory": ["timer:sync.pull", "timer:bootTimer", "http:api.example.com/v1/items", "env:EXAMPLE_API_KEY"],
+          "health": [{ "sev": "warn", "title": "Skips silently without an API key", "detail": "Returns no names, logs nothing.", "source": "code",
+                       "evidence": [{ "file": "src/client.ts", "line": 4, "anchor": "if (!process.env.EXAMPLE_API_KEY) return []" }] }] },
+        { "id": "api", "type": "process", "label": "Serve API", "does": "Answers list and add requests.",
+          "evidence": [{ "file": "src/server.ts", "line": 5, "anchor": "export function handle" }],
+          "inventory": ["route:GET /api/items", "route:POST /api/items"] },
+        { "id": "db", "type": "store", "label": "Items database", "does": "One table of items and a sync log.",
+          "evidence": [{ "file": "migrations/001_init.sql", "line": 1, "anchor": "CREATE TABLE items" }],
+          "inventory": ["table:items", "table:sync_log"] },
+        { "id": "report", "type": "unused", "label": "Report runner", "does": "Would run a report script; nothing calls it.",
+          "evidence": [{ "file": "src/jobs.ts", "line": 27, "anchor": "export function runReport" }],
+          "inventory": ["proc:node", "proc:cmd@src/jobs.ts", "timer:killTimer"] }
+      ],
+      "edges": [
+        { "from": "remote", "to": "sync", "label": "item names", "evidence": [{ "file": "src/client.ts", "line": 5, "anchor": "fetch(" }] },
+        { "from": "sync", "to": "db", "label": "new items", "evidence": [{ "file": "src/db.ts", "line": 6, "anchor": "INSERT INTO items" }] },
+        { "from": "user", "to": "api", "label": "new item", "evidence": [{ "file": "src/server.ts", "line": 12, "anchor": "method === \"POST\"" }] },
+        { "from": "api", "to": "db", "label": "new item", "evidence": [{ "file": "src/server.ts", "line": 13, "anchor": "addItem(\"manual\")" }] },
+        { "from": "db", "to": "api", "label": "item rows", "evidence": [{ "file": "src/db.ts", "line": 10, "anchor": "SELECT id, name FROM items" }] },
+        { "from": "api", "to": "user", "label": "item list", "evidence": [{ "file": "src/server.ts", "line": 9, "anchor": "JSON.stringify(listItems())" }] }
+      ]
+    }
+  ],
+  "walks": [
+    { "id": "one-item", "title": "Follow one item", "view": "journey",
+      "steps": [
+        { "node": "remote", "text": "The API has a new name." },
+        { "edge": "remote>sync", "text": "Sync fetches it." },
+        { "edge": "sync>db", "text": "It is saved as an item." },
+        { "node": "db", "text": "Now it is in the list." }
+      ] }
+  ],
+  "excluded": [
+    { "inventory": "timer:heartbeat", "reason": "Empty keep-alive; moves no data." },
+    { "inventory": "worker:hash-worker", "reason": "Only reachable from hashInWorker, which nothing calls." },
+    { "inventory": "proc:git", "reason": "Only used by headSha, which only tests call." }
+  ]
+}

@@ -1,21 +1,49 @@
 # Workflow skills for Claude Code and Codex
 
-The skills I use to plan and run work across coding agents. Refreshed from my installed
-files on September 8, 2026, with the public adaptations listed below.
+The skills I use to plan and run work across coding agents, and to map how an app works
+before changing it. Refreshed from my installed files on September 8, 2026
+(`dataflow-diagram` added October 20, 2026), with the public adaptations listed below.
 
-The write-up is at [doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
+The write-up for the Dynamic Workflows skills is at
+[doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
 
-## Choose a workflow
+## Choose a package
 
 | Package | What it does |
 |---|---|
 | Claude: `skills/dynamic-workflows-plan/` | Adds dispatch contracts and dependency gates to a plan produced with the separately installed `ce-plan` skill. |
 | Claude: `skills/dynamic-workflows-codex/`, `workflows/`, `agents/` | Opus decomposes; a Haiku shim calls `codex exec`; Sonnet reviews. Terra/medium implements, high effort handles repairs. A two-task pilot precedes full execution. Passing tasks are committed on separate branches; nothing is pushed or merged. |
+| Claude: `skills/dataflow-diagram/` | Draws an interactive data flow diagram of an app, from one-box context down to each stage, with a layer for broken or unused parts. Every claim is checked against code. |
 | Native Codex: `codex/skills/dynamic-workflows-codex/` | Executes durable plans through native Codex workers. Uses available agent routing and tools, with optional bounded pilots and worktree-only delivery by default. |
 | Native Codex: `codex/skills/session-orchestration/` | Coordinates a session's planning, worker scope, review, and delivery. |
 
 The two `dynamic-workflows-codex` skills belong to different applications. Install them
 into their respective homes; do not copy the native skill over the Claude skill.
+
+## dataflow-diagram
+
+Ask Claude Code to "diagram this app" or run `/dataflow-diagram` in a repo. It writes one
+`index.html` you open in a browser, plus `model.json`, `inventory.json` and `report.md`, to
+`docs/dataflow/` (or `--out <dir>`).
+
+The page answers one question per view: what goes in and comes out (one box), what path the
+data takes (4–7 stages), then what happens inside each stage. Click a box to read what it
+does and see the `file:line` it came from; "Look inside" zooms in. A walkthrough follows one
+real item through the app, and "Show problems" marks parts that are broken, unused or never
+connected.
+
+The model does not grade itself. A script inventories the code first (entry points, tables,
+outside calls, functions nothing calls). Every box and arrow cites a `file:line` plus text on
+that line, and a verify script rejects the model when a cite doesn't match the code or when
+more than 10% of the inventory is left unexplained. An arrow that can't be cited must be
+marked inferred and is drawn dashed. Optional live
+SQLite row counts flag empty tables, and a separate reviewer agent tries to refute each
+claim before the page is drawn.
+
+![The journey view of the diagram for AgentWrangler: six stages from reading logs to serving a dashboard](docs/images/dataflow-diagram.png)
+
+*First run, on [AgentWrangler](https://github.com/Doogit/AgentWrangler): the journey view.
+The problems layer is off here.*
 
 ## Install
 
@@ -60,6 +88,11 @@ copy the contents of `codex/skills/` into `~/.agents/skills/`.
 - The bridge uses unattended `approval_policy="never"` with `workspace-write`. This
   cannot grant permissions. Authorize the intended work before launching; denied actions
   stop for resolution. The native workflow follows its own authorization contract.
+- `dataflow-diagram` needs Node 24 and has no npm dependencies. Its inventory reads JS/TS in depth;
+  other languages get files and SQL tables only. Optional live row counts use Node's built-in
+  `node:sqlite` (it prints an experimental warning) or a `better-sqlite3` from the target repo
+  (`--sqlite-module`). The generated `index.html` fetches `elkjs@0.9.3` from cdn.jsdelivr.net and
+  fonts from Google Fonts when opened. Self-test: `node --test "test/*.test.mjs"` from the skill folder.
 - A diff review is not a passing build. Run actual project checks in each task worktree.
   With multiple dependencies, the bridge provides ordering but does not combine their
   branches automatically. Integration and merge remain explicit steps.
@@ -77,6 +110,14 @@ configuration, dependency handling, and review flow, with these changes for shar
 - Machine-specific hook/config claims and a private component name were removed from
   the reference. Historical CLI evidence is labeled as historical; planning examples
   are labeled as templates, and the missing `ce-plan` prerequisite is explicit.
+- `dataflow-diagram`: the design spec, a fact-check log, a worked example and a test tied to the
+  private app it was first run on are not shipped. `SKILL.md` points at `lib/verify.mjs` and the
+  test fixture model instead of the spec. Rules that assumed my setup (a session scratchpad, a
+  specific browser extension, Artifact publishing, a fixed reviewer model) are now general, the
+  examples use neutral names, and unchecked claims about the first run are softened. Public review also
+  hardened viewer HTML escaping and cyclic-view validation, corrected live-empty-table severity, improved SQL
+  statement scanning, and preserved SQLite count keys. The skill documents identifier-case and grouping
+  privacy limits; regressions cover these repairs.
 
 These are instruction and packaging checks, not a new paid end-to-end agent benchmark.
 The [export manifest](EXPORT-MANIFEST.json) records hashes of both the installed inputs
@@ -86,7 +127,7 @@ and the shipped files so the adaptations can be audited.
 
 `python scripts/build_bundles.py --output <directory>` creates two reproducible archives:
 
-- `dynamic-workflows-skills.zip`: the Claude package.
+- `dynamic-workflows-skills.zip`: the Claude package (includes `dataflow-diagram`).
 - `dynamic-workflows-codex-skills.zip`: the native Codex package.
 
 Both include this README, license, manifest, and installers. Select the archive's target

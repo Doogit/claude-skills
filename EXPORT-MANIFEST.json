@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-09-08",
+  "refreshed": "2026-10-20",
   "source": "Installed global skill files; paths intentionally omitted",
   "files": [
     {
@@ -61,6 +61,156 @@
       "source_sha256": "c819f55b0651c5c9a6216ecc33b1a010b4690c2403d55fedb9664b2528bd2d72",
       "export_sha256": "c819f55b0651c5c9a6216ecc33b1a010b4690c2403d55fedb9664b2528bd2d72",
       "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/SKILL.md",
+      "source_sha256": "c98b071580df469af190f7eb47fe9a83816a347801ffc4cac182591dc5486418",
+      "export_sha256": "c44d6b4c5a04ee938cf6c02f0732d5b5d556143945b44197a663c1f4252e1be6",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/adapters/generic.mjs",
+      "source_sha256": "98febe05e53f0742df7b0906249a512882a4d9779e569272bec889a52469cf3c",
+      "export_sha256": "8e87a1fa058dad9e6f5f17597a1c11916f5b1901465870238f8b92c5d8f5bdb6",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/adapters/live-sqlite.mjs",
+      "source_sha256": "dab71783c3af79decf833043e6d86caf0e4efe4b700cfb1691669b234a94b485",
+      "export_sha256": "456c8b836a394736bc4f82204c655f3a7629d6832b275a86e936250cf008db49",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/adapters/ts.mjs",
+      "source_sha256": "dc64abac48387173f7100950ed2aa12a19d624f0d7d7af881bac2632e360ff16",
+      "export_sha256": "dc64abac48387173f7100950ed2aa12a19d624f0d7d7af881bac2632e360ff16",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/dfd.mjs",
+      "source_sha256": "884b5868d731064080946539f6368eedcdffb24db372e15d7624167b9e183593",
+      "export_sha256": "884b5868d731064080946539f6368eedcdffb24db372e15d7624167b9e183593",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/lib/render.mjs",
+      "source_sha256": "188dbd1339f8a4ae388ac242231ae5ecf4fe9c7c5b42f6811e1dd52f5b3a3b43",
+      "export_sha256": "188dbd1339f8a4ae388ac242231ae5ecf4fe9c7c5b42f6811e1dd52f5b3a3b43",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/lib/verify.mjs",
+      "source_sha256": "25ed6406a4875d9073d6e060f326e2f083e5e26e5e868db848ce0691f7d16147",
+      "export_sha256": "7dd31f30f64e0272e91bd2149812986032e95c232e11f88902cb29eb394956f6",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/template/viewer.html",
+      "source_sha256": "fbb1e9e8c8f4df485ce7194a2e0130e71fdc58f969b3733630818ffbb7b8a58b",
+      "export_sha256": "5d5af767cf65c4390e422187c5befecc8a412c5f81279fca8782aaed7dac7df6",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/test/cli.test.mjs",
+      "source_sha256": "718429283efe65ccd077f6e7ed267743ab186960d47b74ff6ac38a7101dcc893",
+      "export_sha256": "718429283efe65ccd077f6e7ed267743ab186960d47b74ff6ac38a7101dcc893",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-chain/src/chain.ts",
+      "source_sha256": "4d13ac5abedbfcff018f0d0e03e63b83d2ae49d55bc618fbc96706e96a520f55",
+      "export_sha256": "4d13ac5abedbfcff018f0d0e03e63b83d2ae49d55bc618fbc96706e96a520f55",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-chain/src/store.ts",
+      "source_sha256": "290e5efe341c1c4e65fea579416346ac0a187b34f5f8415d53d73c6aa6a13d0f",
+      "export_sha256": "290e5efe341c1c4e65fea579416346ac0a187b34f5f8415d53d73c6aa6a13d0f",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/docs/dataflow/model.json",
+      "source_sha256": "1c0ea9e20a504d8ab1db873edae37ed3461f811be6a1b07195dd7166d87183ff",
+      "export_sha256": "1c0ea9e20a504d8ab1db873edae37ed3461f811be6a1b07195dd7166d87183ff",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/expected-inventory.json",
+      "source_sha256": "22b082ed738a030d194bf3a3908d195d9154be80f7cf082621cee7038c0364ee",
+      "export_sha256": "22b082ed738a030d194bf3a3908d195d9154be80f7cf082621cee7038c0364ee",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/migrations/001_init.sql",
+      "source_sha256": "b0f86a286044e65a43b213f83349d584161c486fd4cb3199575d9309e19d5da1",
+      "export_sha256": "b0f86a286044e65a43b213f83349d584161c486fd4cb3199575d9309e19d5da1",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/migrations/002_drop_cache.sql",
+      "source_sha256": "5236dfe9855d4447a66d155aee7856529199a4aae79e71599fdd7fd1accc24e4",
+      "export_sha256": "5236dfe9855d4447a66d155aee7856529199a4aae79e71599fdd7fd1accc24e4",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/package.json",
+      "source_sha256": "84e5ab7c01d32874caa7485fdd3db2a07216c14db943624db78a5cf3e1d5a53b",
+      "export_sha256": "84e5ab7c01d32874caa7485fdd3db2a07216c14db943624db78a5cf3e1d5a53b",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/src/client.test.ts",
+      "source_sha256": "fd0eee1ca129d51779e0cdb884b7074307481d5a10900638767622434655e0f2",
+      "export_sha256": "fd0eee1ca129d51779e0cdb884b7074307481d5a10900638767622434655e0f2",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/src/client.ts",
+      "source_sha256": "b9c8b903807c09be5e5d48e461551d718027dee62053d5b0e257bb4d048f60e4",
+      "export_sha256": "b9c8b903807c09be5e5d48e461551d718027dee62053d5b0e257bb4d048f60e4",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/src/db.ts",
+      "source_sha256": "f3e0d76db58bc35e6c97bffe432f7d14f233b1d3e8a634e7e4ab2476afd1e8df",
+      "export_sha256": "f3e0d76db58bc35e6c97bffe432f7d14f233b1d3e8a634e7e4ab2476afd1e8df",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/src/jobs.ts",
+      "source_sha256": "3e2295f5a0851a8c08e6e4e143a07c9542f878caa01d7d5e686277c863681065",
+      "export_sha256": "3e2295f5a0851a8c08e6e4e143a07c9542f878caa01d7d5e686277c863681065",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/fixtures/ts-mini/src/server.ts",
+      "source_sha256": "9b8107d27626b48e76b2d307690ee192685b9ab726d28f652487eb7094e05271",
+      "export_sha256": "9b8107d27626b48e76b2d307690ee192685b9ab726d28f652487eb7094e05271",
+      "adapted": false
+    },
+    {
+      "path": "skills/dataflow-diagram/test/inventory.test.mjs",
+      "source_sha256": "798507296ad8368bf8da3e64a3f9deb0d7a1dd09d4ab37be61335984498c8852",
+      "export_sha256": "6bfdaf65ad1945c327f62ecd98c351a62a138efe9f2f32c3eb8ccfdafee08f46",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/test/live-groups.test.mjs",
+      "source_sha256": "bf757299bb62e8b0f7b9c296b7e3f89d858b63c23be5b099a7ce94d0bb05f82d",
+      "export_sha256": "184997ac266b5fa4b4a96b244a1a98c9711e32e2575ce5d1380fd55aa0ae25ae",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/test/render.test.mjs",
+      "source_sha256": "37dddf21f323beb7addebe0b7b177b2423b177b3c7121b7df94f4a23547acc7a",
+      "export_sha256": "cfcefb3a7b8148bfd699c1f7af98658a2285b4bf9e24690edbf0bc2e34241898",
+      "adapted": true
+    },
+    {
+      "path": "skills/dataflow-diagram/test/verify.test.mjs",
+      "source_sha256": "01bbf07f66b8b9816da94d9834e1ea0a45e0663e5c29523928f03ef0b3da642e",
+      "export_sha256": "5f727882f1d47f2339352189bd716659812fb4b62c016dc74b306def4ce63b51",
+      "adapted": true
     }
   ],
   "line_endings": "Exported text uses LF."
