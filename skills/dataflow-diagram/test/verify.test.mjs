@@ -184,7 +184,7 @@ test("live: empty tables become live health items on the node that owns them", (
   assert.deepEqual(added, [{ view: "journey", node: "db", table: "sync_log" }]);
   const h = node(model, "journey", "db").health.at(-1);
   assert.equal(h.source, "live");
-  assert.equal(h.sev, "unused");
+  assert.equal(h.sev, "warn");
   assert.equal(h.title, "sync_log: no rows yet");
 });
 
@@ -201,4 +201,11 @@ test("live-sqlite: counts rows read-only", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("references: opens must not form a view cycle", () => {
+  assert.ok(codes(run((m) => { node(m, "context", "app").opens = "context"; }).errors).includes("view-cycle"));
+  assert.ok(codes(run((m) => { node(m, "journey", "sync").opens = "context"; }).errors).includes("view-cycle"));
+  // Cross-navigation back to a parent is valid; only containment must be acyclic.
+  assert.deepEqual(run((m) => { node(m, "journey", "user").go = "context"; }).errors, []);
 });

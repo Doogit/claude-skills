@@ -54,6 +54,22 @@ export function verifyModel({ model, inv, repo }) {
   const isUnused = (n) => n.type === "unused" || (n.health ?? []).some((h) => h.sev === "unused");
 
   const views = new Map(model.views.map((v) => [v.id, v]));
+  // The viewer recursively rolls up child health and follows parent breadcrumbs.
+  // Cross-links (`go`) may point back; containment (`opens`) must be acyclic.
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (id) => {
+    if (visiting.has(id)) {
+      err("view-cycle", `view ${id} is part of an opens cycle; use go for cross-navigation`);
+      return;
+    }
+    if (visited.has(id) || !views.has(id)) return;
+    visiting.add(id);
+    for (const n of views.get(id).nodes) if (n.opens) visit(n.opens);
+    visiting.delete(id);
+    visited.add(id);
+  };
+  for (const id of views.keys()) visit(id);
   const known = new Set([...inv.entries, ...inv.stores, ...inv.outside, ...inv.noCallers].map((i) => i.id));
   const referenced = new Set();
   const inferred = [];
@@ -237,9 +253,9 @@ export function addLiveHealth(model, counts, date = new Date().toISOString().sli
         const table = id.replace(/^table:/, "");
         if (!id.startsWith("table:") || counts[table] !== 0) continue;
         const item = {
-          sev: "unused",
+          sev: "warn",
           title: `${table}: no rows yet`,
-          detail: `0 rows in the live database (checked ${date}). Empty means nothing has been written yet, not that the code is dead.`,
+          detail: `0 rows in the live database (checked ${date}). This snapshot does not prove the code is unused: rows may have been deleted or reset, the feature may be opt-in, or its trigger data or a human step may be absent.`,
           source: "live",
           auto: `live:${table}`,
         };

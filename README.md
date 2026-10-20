@@ -114,8 +114,10 @@ configuration, dependency handling, and review flow, with these changes for shar
   private app it was first run on are not shipped. `SKILL.md` points at `lib/verify.mjs` and the
   test fixture model instead of the spec. Rules that assumed my setup (a session scratchpad, a
   specific browser extension, Artifact publishing, a fixed reviewer model) are now general, the
-  examples use neutral names, and unchecked claims about the first run are softened. Scripts are
-  unchanged apart from one comment.
+  examples use neutral names, and unchecked claims about the first run are softened. Public review also
+  hardened viewer HTML escaping and cyclic-view validation, corrected live-empty-table severity, improved SQL
+  statement scanning, and preserved SQLite count keys. The skill documents identifier-case and grouping
+  privacy limits; regressions cover these repairs.
 
 These are instruction and packaging checks, not a new paid end-to-end agent benchmark.
 The [export manifest](EXPORT-MANIFEST.json) records hashes of both the installed inputs

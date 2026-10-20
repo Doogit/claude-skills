@@ -22,8 +22,10 @@ languages need more reading by hand in step 2.
   `code`/`live` unless you re-derive it. Plans go stale: before keeping a plan fact, check it against code or live
   counts when you can. If they contradict it, state the checked fact (`code`/`live`) and drop the plan version.
 - **Read targeted code** (Grep, then Read with offset/limit). Never read whole trees.
-- **Privacy:** the live check reads row counts only. Never select row content. Don't put transcript, message or
-  secret content in the model.
+- **Privacy:** `verify --live` reads table row counts only. `groups` also returns the full values of the
+  explicitly selected id/enum column; use it only for non-sensitive identifiers or states, never transcript,
+  message, secret or free-text columns. The 200-value limit is not a privacy guarantee. Keep sensitive content
+  out of the model.
 - **Don't modify the target repo** beyond the output dir. If the repo forbids generated files (or the user says
   so), write output to a temp folder outside the repo with `--out`.
 
@@ -37,7 +39,9 @@ Default output dir: `<repo>/docs/dataflow/`. Pass the same `--out <dir>` to ever
    ones called only from such functions — these carry `calledOnlyFrom`; imports don't count as calls). Ids look
    like `table:orders`, `route:GET /api/x`, `timer:...`, `env:ANTHROPIC_API_KEY`. It skips dot-folders and
    folders such as `docs`, `test`, `scripts`, `build`, `examples` (full list: `excludedDirs` in `inventory.json`);
-   if real app code lives in one of them, say so in the report.
+   if real app code lives in one of them, say so in the report. SQL identifiers currently match by exact case;
+   manually confirm differently cased CREATE/read/write/DROP/RENAME references before claiming a table is unused
+   ([dialect-aware matching follow-up](https://github.com/Doogit/claude-skills/issues/3)).
 2. **Understand** — read the README / plan docs for intent, then confirm in code. Group inventory items into 4–7
    stages in data order. Note what looks broken or unused (empty tables, no-caller functions, write-only stores).
 3. **Write `model.json`** (schema below). For large apps, write a small generator script outside the repo that
@@ -89,7 +93,8 @@ Default output dir: `<repo>/docs/dataflow/`. Pass the same `--out <dir>` to ever
 - DFD lint (verify enforces): no store→store, actor→store or actor→actor edges; every process has an input and
   an output (ports and actors count).
 - Child views are **balanced**: a stage's L2 view shows its parent neighbours as ports/actors.
-- `opens` on a node = the child view id (makes it drillable). `go` on a port = the view it links to.
+- `opens` on a node = the child view id (makes it drillable); these links must not form cycles. `go` on a port
+  = the view it links to and may link back to a parent.
 - Health items: `sev` `broken` (wrong or failing) / `warn` (needs attention) / `unused` (built, never
   used), `source` `code` / `live` / `plan`, `title`, `detail`, `evidence`. Verify auto-adds items for write-only /
   read-only stores and empty tables (live).

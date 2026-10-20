@@ -41,6 +41,66 @@ export function isComment(line) {
   return /^\s*(\/\/|\/\*|\*|#|--)/.test(line);
 }
 
+/** Split SQL on semicolons outside quotes and comments, keeping each statement's source line. */
+function sqlStatements(file) {
+  const source = file.lines.join("\n");
+  const statements = [];
+  let cleaned = "";
+  let line = 1;
+  let startLine = 1;
+  let hasContent = false;
+  let mode = "code";
+  const append = (char) => {
+    if (!hasContent && !/\s/.test(char)) { startLine = line; hasContent = true; }
+    cleaned += char;
+    if (char === "\n") line++;
+  };
+  const flush = () => {
+    if (hasContent) statements.push({ text: cleaned, line: startLine });
+    cleaned = "";
+    hasContent = false;
+    startLine = line;
+  };
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    const next = source[i + 1];
+    if (mode === "line-comment") {
+      if (char === "\n") { mode = "code"; append(char); }
+      else append(" ");
+      continue;
+    }
+    if (mode === "block-comment") {
+      if (char === "*" && next === "/") { append(" "); append(" "); i++; mode = "code"; }
+      else append(char === "\n" ? char : " ");
+      continue;
+    }
+    if (mode === "string") {
+      if (char === "'" && next === "'") { append(" "); append(" "); i++; }
+      else { if (char === "'") mode = "code"; append(char === "\n" ? char : " "); }
+      continue;
+    }
+    if (mode === "double-quote" || mode === "backtick" || mode === "bracket") {
+      const close = mode === "double-quote" ? '"' : mode === "backtick" ? "`" : "]";
+      append(char);
+      if (char === close) {
+        if (next === close) { append(next); i++; }
+        else mode = "code";
+      }
+      continue;
+    }
+    if (char === "-" && next === "-") { append(" "); append(" "); i++; mode = "line-comment"; }
+    else if (char === "/" && next === "*") { append(" "); append(" "); i++; mode = "block-comment"; }
+    else if (char === "'") { append(" "); mode = "string"; }
+    else if (char === '"') { append(char); mode = "double-quote"; }
+    else if (char === "`") { append(char); mode = "backtick"; }
+    else if (char === "[") { append(char); mode = "bracket"; }
+    else if (char === ";") flush();
+    else append(char);
+  }
+  flush();
+  return statements;
+}
+
 /**
  * Tables that survive all migrations: .sql files in path order (CREATE / DROP / RENAME),
  * then CREATE TABLE statements embedded in code (run order unknown, so creates only).
@@ -50,22 +110,33 @@ export function sqlTables(files) {
   const create = /\bCREATE\s+(TEMP\s+|TEMPORARY\s+)?(?:VIRTUAL\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`[]?(\w+)/gi;
   const drop = /\bDROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?["`[]?(\w+)/gi;
   const rename = /\bALTER\s+TABLE\s+["`[]?(\w+)["`\]]?\s+RENAME\s+TO\s+["`[]?(\w+)/gi;
+  const sqlCreate = new RegExp("^\\s*" + create.source, "i");
+  const sqlDrop = new RegExp("^\\s*" + drop.source, "i");
+  const sqlRename = new RegExp("^\\s*" + rename.source, "i");
   const ordered = [...files.filter((f) => f.ext === "sql"), ...files.filter((f) => f.ext !== "sql")];
   for (const f of ordered) {
-    const isSql = f.ext === "sql";
-    f.lines.forEach((raw, i) => {
-      const line = isSql ? raw.replace(/--.*$/, "") : raw;
-      if (!isSql && isComment(line)) return;
+    if (f.ext === "sql") {
+      for (const { text, line } of sqlStatements(f)) {
+        const created = sqlCreate.exec(text);
+        const dropped = sqlDrop.exec(text);
+        const renamed = sqlRename.exec(text);
+        if (created) {
+          if (!created[1] && !tables.has(created[2])) tables.set(created[2], { file: f.rel, line });
+        } else if (dropped) {
+          tables.delete(dropped[1]);
+        } else if (renamed) {
+          const t = tables.get(renamed[1]);
+          tables.delete(renamed[1]);
+          if (t) tables.set(renamed[2], t);
+        }
+      }
+      continue;
+    }
+    f.lines.forEach((line, i) => {
+      if (isComment(line)) return;
       for (const m of line.matchAll(create)) {
         if (m[1] || tables.has(m[2])) continue;
         tables.set(m[2], { file: f.rel, line: i + 1 });
-      }
-      if (!isSql) return;
-      for (const m of line.matchAll(drop)) tables.delete(m[1]);
-      for (const m of line.matchAll(rename)) {
-        const t = tables.get(m[1]);
-        tables.delete(m[1]);
-        if (t) tables.set(m[2], t);
       }
     });
   }

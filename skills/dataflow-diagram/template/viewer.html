@@ -637,8 +637,8 @@ function flowsFor(n) {
 }
 const flowList = (arr, arrow) => `<ul class="flows">${arr.map(([who, what]) => `<li><span class="arrow">${arrow}</span><span><b>${esc(who)}</b> <span class="what">· ${esc(what || '')}</span></span></li>`).join('')}</ul>`;
 const SEV = { broken: 'Broken', warn: 'Needs attention', unused: 'Not connected' };
-const probHtml = (h, link) => `<div class="prob ${h.sev}${link ? ' link' : ''}" ${link ? `data-view="${h.view}" data-node="${h.id}" tabindex="0"` : ''}>
-  <span class="sev">${SEV[h.sev]}${link ? ' · ' + esc(short(h.node)) : ''}${h.source === 'plan' ? ' · plan-only, not re-checked' : ''}</span>
+const probHtml = (h, link) => `<div class="prob ${esc(h.sev)}${link ? ' link' : ''}" ${link ? `data-view="${esc(h.view)}" data-node="${esc(h.id)}" tabindex="0"` : ''}>
+  <span class="sev">${esc(SEV[h.sev])}${link ? ' · ' + esc(short(h.node)) : ''}${h.source === 'plan' ? ' · plan-only, not re-checked' : ''}</span>
   <b>${esc(h.title)}</b>${h.detail ? `<span>${esc(h.detail)}</span>` : ''}</div>`;
 const TYPE = { actor: 'Outside ' + APP, process: 'Step', store: 'Data store', system: 'The app', port: 'Link to another view', unused: 'Not connected', group: 'Group' };
 const at = e => `${e.file}:${e.line}`;
@@ -663,7 +663,7 @@ function renderPanel() {
   const n = state.sel && v.nodes.find(x => x.id === state.sel);
   if (!n) {
     const probs = v.nodes.flatMap(x => healthOf(state.view, x));
-    panel.innerHTML = `<div><h3>Level ${v.level} · ${esc(v.title)}</h3><h2>${esc(v.question)}</h2></div>
+    panel.innerHTML = `<div><h3>Level ${esc(v.level)} · ${esc(v.title)}</h3><h2>${esc(v.question)}</h2></div>
       <p>${rich(v.intro)}</p>
       <p class="hint">Click a box to read about it. Click it again, or use “Look inside”, to zoom in.</p>
       ${state.health ? `<div><h3>Problems here (${probs.length})</h3><div class="problist">${probs.length ? probs.map(h => probHtml(h, true)).join('') : '<p class="hint">Nothing flagged at this level.</p>'}</div></div>`
@@ -676,7 +676,7 @@ function renderPanel() {
   const { ins, outs } = flowsFor(n);
   const hl = healthOf(state.view, n);
   const ev = evidenceOf(n);
-  panel.innerHTML = `<div><span class="chip">${TYPE[n.type]}</span></div>
+  panel.innerHTML = `<div><span class="chip">${esc(TYPE[n.type])}</span></div>
     <h2>${esc(short(n.label))}</h2>
     <p>${rich(n.does || '')}</p>
     ${n.when ? `<p class="when"><b>When:</b> ${esc(n.when)}</p>` : ''}
@@ -756,7 +756,7 @@ function chrome() {
   const v = VIEWS[state.view];
   const chain = chainOf(state.view);
   const crumbs = document.getElementById('crumbs');
-  crumbs.innerHTML = chain.map((c, i) => i === chain.length - 1 ? `<span class="here">${esc(VIEWS[c].title)}</span>` : `<a data-v="${c}" tabindex="0">${esc(VIEWS[c].title)}</a><span aria-hidden="true">›</span>`).join(' ');
+  crumbs.innerHTML = chain.map((c, i) => i === chain.length - 1 ? `<span class="here">${esc(VIEWS[c].title)}</span>` : `<a data-v="${esc(c)}" tabindex="0">${esc(VIEWS[c].title)}</a><span aria-hidden="true">›</span>`).join(' ');
   crumbs.querySelectorAll('a').forEach(a => { const go = () => { stopWalk(); zoomOutToChain(a.dataset.v); }; a.onclick = go; a.onkeydown = e => { if (e.key === 'Enter') go(); }; });
   const openers = v.nodes.filter(n => n.opens);
   const lv = document.getElementById('levels');
@@ -764,7 +764,7 @@ function chrome() {
     const target = i < chain.length ? chain[i] : (i === chain.length && openers.length === 1 ? openers[0].opens : null);
     const on = i === v.level;
     const tip = on ? 'You are here' : target ? `Go to ${VIEWS[target].title}` : 'Pick a stage to go deeper';
-    return `<button class="${on ? 'on' : ''}" data-t="${target || ''}" ${on || !target ? 'disabled' : ''} title="${esc(tip)}" ${on ? 'aria-current="true"' : ''}>${l}</button>`;
+    return `<button class="${on ? 'on' : ''}" data-t="${esc(target || '')}" ${on || !target ? 'disabled' : ''} title="${esc(tip)}" ${on ? 'aria-current="true"' : ''}>${l}</button>`;
   }).join('');
   lv.querySelectorAll('button[data-t]:not(:disabled)').forEach(b => b.onclick = () => navTo(b.dataset.t));
   document.getElementById('question').textContent = v.question;

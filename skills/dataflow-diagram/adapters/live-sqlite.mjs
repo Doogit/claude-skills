@@ -1,4 +1,4 @@
-// Live check for SQLite: row counts per table, opened read-only. Never reads row contents.
+// Live SQLite checks, opened read-only: tableCounts reads counts; groupCounts reads operator-selected id/enum values.
 import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
@@ -24,8 +24,8 @@ function open(file, sqliteModule) {
 const MAX_GROUPS = 200;
 
 /**
- * { value: rowCount } for `table.column` — e.g. recs per detector id. Only for id/enum/status columns:
- * refuses a column with more than MAX_GROUPS distinct values. Values are cut to 64 characters.
+ * { value: rowCount } for an operator-selected id/enum/status `table.column`.
+ * Refuses more than MAX_GROUPS distinct values or values ambiguous as object keys.
  */
 export function groupCounts(file, spec, sqliteModule) {
   const [table, column] = spec.split(".");
@@ -37,10 +37,13 @@ export function groupCounts(file, spec, sqliteModule) {
     const distinct = Number(db.prepare(`SELECT COUNT(DISTINCT ${quote(column)}) AS n FROM ${quote(table)}`).get().n);
     if (distinct > MAX_GROUPS)
       throw new Error(`groups: ${spec} has ${distinct} distinct values (max ${MAX_GROUPS}); use an id/enum column`);
-    const out = {};
-    for (const r of db.prepare(`SELECT ${quote(column)} AS v, COUNT(*) AS n FROM ${quote(table)} GROUP BY 1 ORDER BY 1`).all())
-      out[r.v == null ? "(null)" : String(r.v).slice(0, 64)] = Number(r.n);
-    return out;
+    const counts = new Map();
+    for (const r of db.prepare(`SELECT ${quote(column)} AS v, COUNT(*) AS n FROM ${quote(table)} GROUP BY 1 ORDER BY 1`).all()) {
+      const key = r.v == null ? "(null)" : String(r.v);
+      if (counts.has(key)) throw new Error(`groups: ${spec} has ambiguous value ${JSON.stringify(key)} after string conversion`);
+      counts.set(key, Number(r.n));
+    }
+    return Object.fromEntries(counts);
   } finally {
     db.close();
   }
@@ -49,11 +52,9 @@ export function groupCounts(file, spec, sqliteModule) {
 export function tableCounts(file, sqliteModule) {
   const db = open(file, sqliteModule);
   try {
-    const counts = {};
-    for (const { name } of db.prepare(LIST).all()) {
-      counts[name] = Number(db.prepare(`SELECT COUNT(*) AS n FROM ${quote(name)}`).get().n);
-    }
-    return counts;
+    return Object.fromEntries(db.prepare(LIST).all().map(({ name }) => [
+      name, Number(db.prepare(`SELECT COUNT(*) AS n FROM ${quote(name)}`).get().n),
+    ]));
   } finally {
     db.close();
   }
