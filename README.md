@@ -1,12 +1,13 @@
 # Workflow skills for Claude Code and Codex
 
-The skills I use to plan and run work across coding agents. Refreshed from my installed
-files on September 8, 2026 (`dataflow-diagram` added October 20, 2026), with the public
-adaptations listed below.
+The skills I use to plan and run work across coding agents, and to map how an app works
+before changing it. Refreshed from my installed files on September 8, 2026
+(`dataflow-diagram` added October 20, 2026), with the public adaptations listed below.
 
-The write-up is at [doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
+The write-up for the Dynamic Workflows skills is at
+[doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
 
-## Choose a workflow
+## Choose a package
 
 | Package | What it does |
 |---|---|
@@ -18,6 +19,31 @@ The write-up is at [doogit.com](https://doogit.com/posts/claude-conducts-codex-b
 
 The two `dynamic-workflows-codex` skills belong to different applications. Install them
 into their respective homes; do not copy the native skill over the Claude skill.
+
+## dataflow-diagram
+
+Ask Claude Code to "diagram this app" or run `/dataflow-diagram` in a repo. It writes one
+`index.html` you open in a browser, plus `model.json`, `inventory.json` and `report.md`, to
+`docs/dataflow/` (or `--out <dir>`).
+
+The page answers one question per view: what goes in and comes out (one box), what path the
+data takes (4–7 stages), then what happens inside each stage. Click a box to read what it
+does and see the `file:line` it came from; "Look inside" zooms in. A walkthrough follows one
+real item through the app, and "Show problems" marks parts that are broken, unused or never
+connected.
+
+The model does not grade itself. A script inventories the code first (entry points, tables,
+outside calls, functions nothing calls). Every box and arrow cites a `file:line` plus text on
+that line, and a verify script rejects the model when a cite doesn't match the code or when
+more than 10% of the inventory is left unexplained. An arrow that can't be cited must be
+marked inferred and is drawn dashed. Optional live
+SQLite row counts flag empty tables, and a separate reviewer agent tries to refute each
+claim before the page is drawn.
+
+![The journey view of the diagram for AgentWrangler: six stages from reading logs to serving a dashboard](docs/images/dataflow-diagram.png)
+
+*First run, on [AgentWrangler](https://github.com/Doogit/AgentWrangler): the journey view.
+The problems layer is off here.*
 
 ## Install
 
