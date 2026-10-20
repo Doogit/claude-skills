@@ -1,0 +1,39 @@
+{
+  "entries": [
+    { "id": "bin:ts-mini", "kind": "bin", "file": "package.json", "line": 3, "target": "src/server.ts" },
+    { "id": "listen:3000", "kind": "listen", "file": "src/server.ts", "line": 22 },
+    { "id": "route:GET /api/items", "kind": "route", "file": "src/server.ts", "line": 8 },
+    { "id": "route:POST /api/items", "kind": "route", "file": "src/server.ts", "line": 12 },
+    { "id": "timer:bootTimer", "kind": "timer", "file": "src/jobs.ts", "line": 21, "period": "3_000", "oneShot": true },
+    { "id": "timer:heartbeat", "kind": "timer", "file": "src/jobs.ts", "line": 19, "period": "5_000" },
+    { "id": "timer:killTimer", "kind": "timer", "file": "src/jobs.ts", "line": 30, "period": "30_000", "oneShot": true },
+    { "id": "timer:sync.pull", "kind": "timer", "file": "src/jobs.ts", "line": 11, "period": "60_000" },
+    { "id": "worker:hash-worker", "kind": "worker", "file": "src/jobs.ts", "line": 41 }
+  ],
+  "stores": [
+    {
+      "id": "table:items", "kind": "table", "file": "migrations/001_init.sql", "line": 1,
+      "writes": [{ "file": "src/db.ts", "line": 6 }],
+      "reads": [{ "file": "src/db.ts", "line": 10 }]
+    },
+    {
+      "id": "table:sync_log", "kind": "table", "file": "migrations/001_init.sql", "line": 6,
+      "writes": [{ "file": "src/db.ts", "line": 14 }],
+      "reads": []
+    }
+  ],
+  "outside": [
+    { "id": "env:EXAMPLE_API_KEY", "kind": "env", "file": "src/client.ts", "line": 4 },
+    { "id": "http:api.example.com/v1/items", "kind": "http", "file": "src/client.ts", "line": 5 },
+    { "id": "proc:cmd@src/jobs.ts", "kind": "process", "file": "src/jobs.ts", "line": 38 },
+    { "id": "proc:git", "kind": "process", "file": "src/client.ts", "line": 10 },
+    { "id": "proc:node", "kind": "process", "file": "src/jobs.ts", "line": 29 }
+  ],
+  "noCallers": [
+    { "id": "fn:hashInWorker", "file": "src/jobs.ts", "line": 40, "endLine": 44 },
+    { "id": "fn:headSha", "file": "src/client.ts", "line": 9, "endLine": 11 },
+    { "id": "fn:runReport", "file": "src/jobs.ts", "line": 27, "endLine": 36 },
+    { "id": "fn:sleep", "file": "src/jobs.ts", "line": 23, "endLine": 25 }
+  ],
+  "excludedFiles": ["src/client.test.ts"]
+}

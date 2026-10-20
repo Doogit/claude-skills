@@ -14,7 +14,7 @@ case "$TARGET" in claude|codex|all) ;; *) echo "Invalid target: $TARGET" >&2; ex
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 required=()
 if [ "$TARGET" = claude ] || [ "$TARGET" = all ]; then
-  required+=(skills/dynamic-workflows-plan skills/dynamic-workflows-codex workflows/dynamic-workflows-codex.js agents/codex-worker.md)
+  required+=(skills/dynamic-workflows-plan skills/dynamic-workflows-codex skills/dataflow-diagram workflows/dynamic-workflows-codex.js agents/codex-worker.md)
 fi
 if [ "$TARGET" = codex ] || [ "$TARGET" = all ]; then
   required+=(codex/skills/dynamic-workflows-codex codex/skills/session-orchestration)
@@ -39,7 +39,7 @@ copy_piece() {
 }
 if [ "$TARGET" = claude ] || [ "$TARGET" = all ]; then
   CLAUDE_DEST="${CLAUDE_HOME:-$HOME/.claude}"
-  for rel in skills/dynamic-workflows-plan skills/dynamic-workflows-codex workflows/dynamic-workflows-codex.js agents/codex-worker.md; do
+  for rel in skills/dynamic-workflows-plan skills/dynamic-workflows-codex skills/dataflow-diagram workflows/dynamic-workflows-codex.js agents/codex-worker.md; do
     copy_piece "$SRC/$rel" "$CLAUDE_DEST/$rel"
   done
 fi

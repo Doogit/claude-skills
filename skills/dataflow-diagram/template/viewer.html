@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: header strip, then a wide zoomable diagram beside a reading panel; panel stacks below on narrow screens. */
+:root {
+  --bg: #F2F4F1; --surface: #FFFFFF; --ink: #17201D; --muted: #5B6762; --line: #C7CFCA; --edge: #7D8A84;
+  --accent: #0A7A69; --accent-soft: #DCEFE9; --store: #E7ECF5; --store-ink: #3E5A8C;
+  --bad: #C0392B; --warn: #A86A12; --unused: #7A8580; --dim: .18;
+  --actor: #7B4BA3; --actor-soft: #F2EBF8; --proc: #0A7A69; --proc-soft: #E4F3EF;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F1412; --surface: #172019; --ink: #E3EAE6; --muted: #98A49F; --line: #33403A; --edge: #6F7D77;
+  --accent: #3CC4AB; --accent-soft: #143A32; --store: #18233A; --store-ink: #8FAADB;
+  --bad: #F07862; --warn: #E2AE4C; --unused: #8A9590;
+  --actor: #BE9BE0; --actor-soft: #261B31; --proc: #3CC4AB; --proc-soft: #12302A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0F1412; --surface: #172019; --ink: #E3EAE6; --muted: #98A49F; --line: #33403A; --edge: #6F7D77;
+  --accent: #3CC4AB; --accent-soft: #143A32; --store: #18233A; --store-ink: #8FAADB;
+  --bad: #F07862; --warn: #E2AE4C; --unused: #8A9590;
+  --actor: #BE9BE0; --actor-soft: #261B31; --proc: #3CC4AB; --proc-soft: #12302A; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); padding-inline: 16px; padding-block: 18px 40px }
+.wrap { max-width: 1440px; margin: 0 auto; display: grid; gap: 14px }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between }
+h1 { font: 700 26px/1.1 var(--f-display); margin: 0; letter-spacing: -.01em }
+.kicker { font: 500 11px/1.4 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px }
+.controls { display: flex; flex-wrap: wrap; gap: 8px }
+button { font: 600 13px/1 var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 12px; cursor: pointer }
+button:hover { border-color: var(--edge) }
+button:focus-visible, .term:focus-visible, svg .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg) }
+
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted) }
+.crumbs a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer }
+.crumbs a:hover { text-decoration: underline }
+.crumbs .here { color: var(--ink); font-weight: 600 }
+.levels { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto }
+.levels button { font: 500 11px/1 var(--f-mono); padding: 6px 8px; border-radius: 5px; border: 1px solid var(--line); color: var(--ink); background: var(--surface) }
+.levels button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent) }
+.levels button.on { background: var(--accent-soft); color: var(--accent); border-color: transparent; cursor: default }
+.levels button:disabled:not(.on) { color: var(--muted); opacity: .55; cursor: not-allowed }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start }
+@media (max-width: 980px) { main { grid-template-columns: minmax(0, 1fr) } }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; overflow: hidden }
+.stage-head { padding: 14px 18px 0; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline }
+.question { font: 700 20px/1.2 var(--f-display); margin: 0; text-wrap: balance }
+.hint { font-size: 13px; color: var(--muted) }
+.canvas { overflow-x: auto; padding: 6px 8px 4px }
+svg#dia { display: block; width: 100%; min-width: 760px; height: auto; transition: opacity .28s ease }
+svg#dia.fade { opacity: 0 }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 18px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted) }
+.legend i { display: inline-block; width: 22px; height: 13px; vertical-align: -2px; margin-right: 6px; border-radius: 3px }
+.lg-actor { border: 1.5px dashed var(--actor); background: var(--actor-soft); border-radius: 7px !important }
+.lg-proc { border: 1.5px solid var(--proc); background: var(--proc-soft) }
+.lg-drill { border: 1.5px solid var(--proc); background: var(--proc-soft); box-shadow: 3px 3px 0 -1.5px var(--proc-soft), 3px 3px 0 0 var(--proc); margin-right: 9px !important }
+.lg-store { border: 1.5px solid var(--store-ink); background: var(--store); border-radius: 7px / 4px !important }
+.lg-unused { border: 1.5px dashed var(--unused); opacity: .7 }
+.lg-flow { height: 0 !important; border-top: 2.5px dotted var(--accent); border-radius: 0 !important }
+.lg-inferred { height: 0 !important; border-top: 1.5px dashed var(--edge); border-radius: 0 !important }
+
+/* SVG */
+svg text { font-family: var(--f-body); fill: var(--ink) }
+.node { cursor: pointer }
+.node .shape, .node .layer { fill: var(--proc-soft); stroke: var(--proc); stroke-width: 1.5 }
+.node .layer { opacity: .7 }
+.node .icon { fill: none; stroke: var(--proc); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round }
+.node.actor .shape { fill: var(--actor-soft); stroke: var(--actor); stroke-dasharray: 5 4 }
+.node.actor .icon { stroke: var(--actor) }
+.node.store .shape, .node.store .lid { fill: var(--store); stroke: var(--store-ink) }
+.node.store .lid { fill: none }
+.node.store .icon { stroke: var(--store-ink) }
+.node.system .shape, .node.system .layer { stroke-width: 2.4 }
+.node.port .shape { fill: var(--surface); stroke: var(--muted); stroke-dasharray: 2 3 }
+.node.port .icon { stroke: var(--muted) }
+.node.unused .icon { stroke: var(--unused) }
+.node.drill { cursor: zoom-in }
+.drill-btn circle { fill: var(--proc); stroke: var(--surface); stroke-width: 2 }
+.drill-btn path { stroke: var(--surface); stroke-width: 2; stroke-linecap: round; fill: none }
+.drill-btn:hover circle { fill: var(--ink) }
+.node.unused { opacity: .62 }
+.node.unused .shape { fill: transparent; stroke: var(--unused); stroke-dasharray: 6 4 }
+.node.group { cursor: default }
+.node.group .shape { fill: none; stroke: var(--line); stroke-dasharray: 2 4; stroke-width: 1.2 }
+.node.group text.lbl { font: 600 12px var(--f-mono); fill: var(--muted); letter-spacing: .06em; text-transform: uppercase }
+.node text.lbl { font-weight: 600; font-size: 15px }
+.node.system text.lbl { font: 700 24px var(--f-display) }
+.node text.sub { font-size: 12px; fill: var(--muted) }
+.node text.open { font: 600 12px var(--f-body); fill: var(--proc) }
+.node:hover .shape { stroke-width: 2.4 }
+.node.sel .shape { stroke: var(--ink); stroke-width: 3; stroke-dasharray: none }
+.badge circle { stroke: var(--surface); stroke-width: 2 }
+.badge text { font: 700 12px var(--f-mono); fill: #fff; text-anchor: middle; dominant-baseline: central }
+.health-off .badge { display: none }
+.health-on .node.h-broken .shape { stroke: var(--bad); stroke-width: 2.4 }
+.health-on .node.h-warn .shape { stroke: var(--warn); stroke-width: 2.2 }
+
+.edge path.base { fill: none; stroke: var(--edge); stroke-width: 1.5 }
+.edge path.flow { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: .1 14; animation: flow 1.4s linear infinite; opacity: .85 }
+.edge.dead path.base { stroke: var(--unused); stroke-dasharray: 5 5 }
+.edge.dead path.flow { display: none }
+.edge.inferred path.base { stroke-dasharray: 3 5 }
+.edge text { font-size: 11.5px; fill: var(--muted); text-anchor: middle; dominant-baseline: central }
+.edge rect.pill { fill: var(--surface); }
+.flow-off .edge path.flow { display: none }
+@keyframes flow { to { stroke-dashoffset: -14.1 } }
+.arrowhead { fill: var(--edge) }
+.arrowhead.dead { fill: var(--unused) }
+.focus-mode .node, .focus-mode .edge { opacity: var(--dim); transition: opacity .3s }
+.focus-mode .node.lit, .focus-mode .edge.lit { opacity: 1 }
+.focus-mode .node.group { opacity: .5 }
+.focus-mode .edge.lit path.base { stroke: var(--accent); stroke-width: 2.2 }
+.dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5 }
+@media (prefers-reduced-motion: reduce) { .edge path.flow { animation: none } svg#dia { transition: none } }
+
+/* Panel */
+aside { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 14px; min-width: 0 }
+aside h2 { font: 700 21px/1.15 var(--f-display); margin: 0; text-wrap: balance }
+aside h3 { font: 500 11px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px }
+aside p { margin: 0 }
+.chip { display: inline-block; font: 500 11px/1 var(--f-mono); padding: 4px 7px; border-radius: 5px; background: var(--bg); color: var(--muted); border: 1px solid var(--line) }
+.when { font-size: 13.5px; color: var(--muted) }
+.when b { color: var(--ink); font-weight: 600 }
+ul.flows { list-style: none; padding: 0; margin: 0; display: grid; gap: 5px; font-size: 13.5px }
+ul.flows li { display: flex; gap: 8px; align-items: baseline }
+ul.flows .arrow { font-family: var(--f-mono); color: var(--accent); flex: none }
+ul.flows .what { color: var(--muted) }
+.prob { border-left: 3px solid var(--warn); padding: 8px 10px; background: var(--bg); border-radius: 0 8px 8px 0; display: grid; gap: 3px; font-size: 13.5px }
+.prob.broken { border-color: var(--bad) }
+.prob.unused { border-color: var(--unused) }
+.prob b { font-weight: 600 }
+.prob .sev { font: 600 10.5px/1.3 var(--f-mono); letter-spacing: .08em; text-transform: uppercase }
+.prob.broken .sev { color: var(--bad) } .prob.warn .sev { color: var(--warn) } .prob.unused .sev { color: var(--unused) }
+.prob.link { cursor: pointer } .prob.link:hover { outline: 1px solid var(--line) }
+.problist { display: grid; gap: 8px }
+details { font-size: 13px; color: var(--muted) }
+details summary { cursor: pointer; color: var(--ink); font-weight: 600 }
+details code { font: 12px var(--f-mono); display: block; margin-top: 5px; color: var(--muted); overflow-wrap: anywhere }
+.term { border-bottom: 1.5px dotted var(--accent); cursor: help; position: relative }
+.term:hover::after, .term:focus::after { content: attr(data-def); position: absolute; left: 0; top: calc(100% + 6px); z-index: 5;
+  width: 250px; max-width: 70vw; background: var(--ink); color: var(--bg); font-size: 12.5px; line-height: 1.45; padding: 8px 10px; border-radius: 7px; font-weight: 400 }
+.walk { display: grid; gap: 10px }
+.walk .count { font: 500 12px var(--f-mono); color: var(--accent) }
+.walk .bar { height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden }
+.walk .bar i { display: block; height: 100%; background: var(--accent); transition: width .3s }
+.row { display: flex; gap: 8px; flex-wrap: wrap }
+.note { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px }
+dl.gloss { margin: 0; display: grid; gap: 6px; font-size: 13px }
+dl.gloss dt { font-weight: 600 } dl.gloss dd { margin: 0 0 4px; color: var(--muted) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker" id="kicker"></div>
+      <h1 id="title"></h1>
+    </div>
+    <div class="controls" id="controls">
+      <button id="btnHealth" aria-pressed="false">Show problems</button>
+      <button id="btnFlow" aria-pressed="true">Moving data</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage">
+      <div class="stage-head">
+        <nav class="crumbs" id="crumbs" aria-label="Level"></nav>
+        <nav class="levels" id="levels" aria-label="Zoom level"></nav>
+      </div>
+      <div class="stage-head" style="padding-top:8px">
+        <h2 class="question" id="question"></h2>
+        <span class="hint" id="hint"></span>
+      </div>
+      <div class="canvas"><svg id="dia" class="health-off" role="img" aria-label="Data flow diagram"></svg></div>
+      <div class="legend">
+        <span><i class="lg-actor"></i><span id="lgActor">Outside the app</span></span>
+        <span><i class="lg-proc"></i>A step that does work</span>
+        <span><i class="lg-drill"></i>Stacked, with ⊕: click to zoom in</span>
+        <span><i class="lg-store"></i>Where data is kept</span>
+        <span><i class="lg-flow"></i>Data moving</span>
+        <span><i class="lg-inferred"></i>Believed, not cited in code</span>
+        <span><i class="lg-unused"></i>Built but not connected</span>
+      </div>
+    </section>
+    <aside id="panel" aria-live="polite"><p class="hint">Laying out the diagram…</p></aside>
+  </main>
+</div>
+
+<script id="model" type="application/json">__MODEL_JSON__</script>
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<script>
+/* ---- Model (inlined by `dfd.mjs render`) ---- */
+const M = JSON.parse(document.getElementById('model').textContent);
+const GL = M.glossary || {};
+const VIEWS = Object.fromEntries(M.views.map(v => [v.id, v]));
+const WALKS = M.walks || [];
+const APP = M.meta.app || M.meta.repo;
+
+/* ---- Rendering ---- */
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('dia');
+const panel = document.getElementById('panel');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const state = { view: M.views[0].id, sel: null, health: false, walk: -1, walkId: null };
+const PARENT = {};
+for (const [vid, v] of Object.entries(VIEWS)) for (const n of v.nodes) if (n.opens) PARENT[n.opens] = { view: vid, node: n.id };
+
+function mk(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function rich(s) { return esc(s || '').replace(/\[\[([^\]]+)\]\]/g, (_, t) => { const key = t.replace(/s$/, ''); const def = GL[t] || GL[key] || ''; return def ? `<span class="term" tabindex="0" data-def="${esc(def)}">${t}</span>` : t; }); }
+function wrap(text, max) { const out = []; let line = ''; for (const w of text.split(' ')) { if ((line + ' ' + w).trim().length > max && line) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); } if (line) out.push(line); return out; }
+const RANK = { broken: 3, warn: 2, unused: 1 };
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const short = s => s.replace(/^\d\s+/, '');
+
+function healthOf(vid, n) {
+  let list = (n.health || []).map(h => ({ ...h, view: vid, id: n.id, node: n.label }));
+  if (n.opens) for (const c of VIEWS[n.opens].nodes) list = list.concat(healthOf(n.opens, c));
+  return list;
+}
+function worst(list) { return list.reduce((a, h) => RANK[h.sev] > RANK[a] ? h.sev : a, 'unused'); }
+
+/* ---- Layout: ELK layered left-to-right for steps/actors/ports; stores in a row below ---- */
+function sizeOf(n) {
+  if (n.type === 'system') return { w: 240, h: 200 };
+  const w = Math.round(clamp(Math.max(n.label.length * 8.2 + 56, Math.min((n.sub || '').length * 6.4 + 30, 170), 136), 136, 220));
+  const lbl = wrap(n.label, Math.floor(w / 8.4)).length, sub = n.sub ? wrap(n.sub, Math.floor(w / 6.6)).length : 0;
+  const h = Math.round(Math.max(n.type === 'store' ? 80 : 70, 30 + lbl * 18 + sub * 15 + (n.opens ? 26 : 0) + 14));
+  return { w, h };
+}
+// Two tries: stores in a row below (the usual look), or stores laid out in the flow like any step. Keep the one
+// whose edges cross fewer boxes and each other; a tie keeps the row.
+async function layoutView(v, elk) {
+  const score = () => {
+    const by = Object.fromEntries(v.nodes.map(n => [n.id, n]));
+    const cs = v.edges.map(e => ({ e, c: curve(by[e.from], by[e.to], 0, v.nodes) }));
+    let s = cs.reduce((t, x) => t + x.c.hits * 100, 0);
+    for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+      const a = cs[i].e, b = cs[j].e;
+      if (![a.from, a.to].some(x => x === b.from || x === b.to)) s += crossCount(cs[i].c, cs[j].c) * 10;
+    }
+    return s;
+  };
+  const save = () => ({ w: v.w, h: v.h, nodes: v.nodes.map(n => ({ x: n.x, y: n.y, w: n.w, h: n.h })) });
+  await layoutOnce(v, elk, false);
+  const row = save(), rowScore = score();
+  if (!rowScore || !v.nodes.some(n => n.type === 'store')) return;
+  await layoutOnce(v, elk, true);
+  if (score() >= rowScore) { v.w = row.w; v.h = row.h; v.nodes.forEach((n, i) => Object.assign(n, row.nodes[i])); }
+}
+async function layoutOnce(v, elk, inFlow) {
+  const byId = new Map(v.nodes.map(n => [n.id, n]));
+  const isStore = n => !inFlow && n.type === 'store';
+  const kids = {};
+  for (const n of v.nodes) {
+    if (n.type !== 'group') Object.assign(n, sizeOf(n));
+    if (n.group && byId.get(n.group)?.type === 'group') (kids[n.group] ||= []).push(n);
+  }
+  // A group is one ELK node sized to hold its members stacked in a column.
+  const GPAD = { top: 40, side: 22, bottom: 20, gap: 16 };
+  for (const g of v.nodes.filter(n => n.type === 'group')) {
+    const list = kids[g.id] || [];
+    const cw = Math.max(150, ...list.map(n => n.w));
+    list.forEach(n => n.w = cw);
+    g.w = cw + 2 * GPAD.side;
+    g.h = GPAD.top + GPAD.bottom + list.reduce((s, n) => s + n.h, 0) + Math.max(0, list.length - 1) * GPAD.gap;
+  }
+  const ref = id => { const n = byId.get(id); return n.group && kids[n.group] ? n.group : id; };
+  const edges = [], seen = new Set();
+  const reaches = (from, to) => { const todo = [from], done = new Set(); while (todo.length) { const x = todo.pop(); if (x === to) return true; if (done.has(x)) continue; done.add(x); for (const e of edges) if (e.sources[0] === x) todo.push(e.targets[0]); } return false; };
+  const add = (a, b) => {
+    if (a === b || seen.has(a + '>' + b)) return;
+    seen.add(a + '>' + b);
+    edges.push({ id: 'e' + edges.length, sources: [a], targets: [b] });
+  };
+  for (const e of v.edges) if (!isStore(byId.get(e.from)) && !isStore(byId.get(e.to))) add(ref(e.from), ref(e.to));
+  // Keep data order through stores: writers come before readers, unless that would make a loop.
+  for (const s of v.nodes.filter(isStore)) {
+    const w = [], r = [];
+    for (const e of v.edges) {
+      if (e.to === s.id) { w.push(e.from); if (e.both) r.push(e.from); }
+      if (e.from === s.id) { r.push(e.to); if (e.both) w.push(e.to); }
+    }
+    for (const a of w) for (const b of r) if (!reaches(ref(b), ref(a))) add(ref(a), ref(b));
+  }
+  // Satellites: an actor that only talks to one step in the middle of the chain sits above that step,
+  // instead of taking a whole column.
+  const nbrs = id => new Set(edges.flatMap(e => e.sources[0] === id ? [e.targets[0]] : e.targets[0] === id ? [e.sources[0]] : []));
+  const sat = new Map();
+  for (const n of v.nodes) {
+    if (n.type !== 'actor' || v.edges.some(e => (e.from === n.id || e.to === n.id) && isStore(byId.get(e.from === n.id ? e.to : e.from)))) continue;
+    const [only, ...more] = nbrs(n.id);
+    if (only && !more.length && [...nbrs(only)].some(x => byId.get(x).type !== 'actor')) sat.set(n.id, only);
+  }
+  for (let k = edges.length - 1; k >= 0; k--) if (sat.has(edges[k].sources[0]) || sat.has(edges[k].targets[0])) edges.splice(k, 1);
+  const flow = v.nodes.filter(n => !isStore(n) && !(n.group && kids[n.group]) && !sat.has(n.id));
+  const constraint = n => {
+    if (n.type !== 'port') return {};
+    const ins = edges.some(e => e.targets[0] === n.id), outs = edges.some(e => e.sources[0] === n.id);
+    return ins === outs ? {} : { 'elk.layered.layering.layerConstraint': outs ? 'FIRST' : 'LAST' };
+  };
+  const res = await elk.layout({
+    id: v.id,
+    layoutOptions: {
+      'elk.algorithm': 'layered', 'elk.direction': 'RIGHT',
+      'elk.spacing.nodeNode': '30', 'elk.layered.spacing.nodeNodeBetweenLayers': '76',
+      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX', 'elk.padding': '[top=34,left=34,bottom=34,right=34]'
+    },
+    children: flow.map(n => ({ id: n.id, width: n.w, height: n.h, layoutOptions: constraint(n) })),
+    edges
+  });
+  for (const c of res.children) Object.assign(byId.get(c.id), { x: c.x, y: c.y });
+  for (const g of v.nodes.filter(n => n.type === 'group')) {
+    let y = g.y + GPAD.top;
+    for (const n of kids[g.id] || []) { n.x = g.x + GPAD.side; n.y = y; y += n.h + GPAD.gap; }
+  }
+  const hosts = new Map();
+  for (const [id, host] of sat) (hosts.get(host) || hosts.set(host, []).get(host)).push(byId.get(id));
+  const laid = v.nodes.filter(n => !isStore(n) && !sat.has(n.id) && n.type !== 'group');
+  // Curves already drawn, so later placements can count how many they would cross.
+  const drawn = v.edges.filter(e => laid.includes(byId.get(e.from)) && laid.includes(byId.get(e.to)))
+    .map(e => ({ from: e.from, to: e.to, c: curve(byId.get(e.from), byId.get(e.to), 0, laid) }));
+  const crossings = (from, to, c) => drawn.reduce((t, d) =>
+    t + (d.from === from || d.from === to || d.to === from || d.to === to ? 0 : crossCount(c, d.c)), 0);
+  for (const [hid, list] of hosts) {
+    const h = byId.get(hid), gap = 24;
+    const total = list.reduce((s, n) => s + n.w, 0) + gap * (list.length - 1), tall = Math.max(...list.map(n => n.h));
+    // Try above, below, right, left, moving further out each round. A spot must clear every placed node, and
+    // its curve to the host must cross no box; among those, the first that crosses the fewest edges wins.
+    const others = laid.filter(o => o !== h);
+    const cost = (x, y) => {
+      if (others.some(o => overlaps([x - 12, y - 12, total + 24, tall + 24], [o.x, o.y, o.w, o.h]))) return null;
+      const row = { x, y, w: total, h: tall, type: 'actor' }, c = curve(h, row, 0, laid);
+      if (c.hits) return null;
+      const blocks = drawn.filter(d => points(d.c).some(([px, py]) => px > x && px < x + total && py > y && py < y + tall)).length;
+      return blocks * 100 + crossings(hid, list[0].id, c);
+    };
+    let best = null;
+    search: for (let d = 64; d <= 64 + 8 * 60; d += 60) {
+      const cx0 = h.x + h.w / 2 - total / 2, midY = h.y + h.h / 2 - tall / 2;
+      for (const [x, y] of [[cx0, h.y - tall - d], [cx0, h.y + h.h + d], [h.x + h.w + d, midY], [h.x - total - d, midY]]) {
+        const k = cost(x, y);
+        if (k != null && (!best || k < best.k)) best = { x, y, k };
+        if (best && !best.k) break search;
+      }
+    }
+    let { x, y } = best || { x: h.x + h.w / 2 - total / 2, y: h.y - tall - 64 };
+    for (const n of list) { n.x = x; n.y = y + (tall - n.h) / 2; x += n.w + gap; laid.push(n); }
+    for (const n of list) for (const e of v.edges) if ((e.from === n.id && e.to === hid) || (e.to === n.id && e.from === hid))
+      drawn.push({ from: e.from, to: e.to, c: curve(byId.get(e.from), byId.get(e.to), 0, laid) });
+  }
+  // Stores: a row below, each under the mean of the nodes it talks to.
+  const placed = v.nodes.filter(n => !isStore(n));
+  const bottom = Math.max(...placed.map(n => n.y + n.h), 0);
+  const stores = v.nodes.filter(isStore);
+  for (const s of stores) {
+    const cx = v.edges.filter(e => e.from === s.id || e.to === s.id).map(e => byId.get(e.from === s.id ? e.to : e.from))
+      .filter(n => !isStore(n)).map(n => n.x + n.w / 2);
+    s.mid = cx.length ? cx.reduce((a, b) => a + b, 0) / cx.length : res.width / 2;
+    const cols = [...new Set(cx.map(Math.round))];
+    if (cols.length >= 3) s.w = Math.max(s.w, Math.max(...cols) - Math.min(...cols) + 120);
+    s.x = s.mid - s.w / 2; s.y = bottom + (stores.length ? 90 : 0);
+  }
+  stores.sort((a, b) => a.mid - b.mid);
+  // Left to right, each store takes the spot near its neighbours whose edges cross the fewest boxes, then the
+  // fewest other edges, without overlapping a store already placed.
+  const done = [];
+  for (const s of stores) {
+    const x0 = s.x, mine = v.edges.filter(e => e.from === s.id || e.to === s.id);
+    const clear = x => !done.some(o => x < o.x + o.w + 30 && o.x < x + s.w + 30);
+    let best = null;
+    for (let i = 0; i <= 24; i++) {
+      const x = x0 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 40;
+      if (!clear(x)) continue;
+      s.x = x;
+      const cost = mine.reduce((t, e) => {
+        const c = curve(byId.get(e.from), byId.get(e.to), 0, [...placed, ...done]);
+        return t + c.hits * 100 + crossings(e.from, e.to, c);
+      }, 0) + Math.abs(x - x0) / 400;
+      if (!best || cost < best.cost) best = { x, cost };
+    }
+    s.x = best ? best.x : Math.max(x0, ...done.map(o => o.x + o.w + 30));
+    done.push(s);
+    for (const e of mine) drawn.push({ from: e.from, to: e.to, c: curve(byId.get(e.from), byId.get(e.to), 0, [...placed, ...done]) });
+  }
+  for (const n of v.nodes) if (n.pos) Object.assign(n, n.pos);
+  // Normalise to a 34 px margin (badges and stacked layers stick out a little).
+  const all = v.nodes.filter(n => n.x != null);
+  const minX = Math.min(...all.map(n => n.x)), minY = Math.min(...all.map(n => n.y));
+  for (const n of all) { n.x += 34 - minX; n.y += 34 - minY; }
+  v.w = Math.max(...all.map(n => n.x + n.w)) + 40;
+  v.h = Math.max(...all.map(n => n.y + n.h)) + 40;
+}
+
+function anchor(n, side, off) {
+  const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+  if (side === 'r') return [n.x + n.w, cy + off, 1, 0];
+  if (side === 'l') return [n.x, cy + off, -1, 0];
+  if (side === 't') return [cx + off, n.y, 0, -1];
+  return [cx + off, n.y + n.h, 0, 1];
+}
+function autoSides(a, b) {
+  const dx = (b.x + b.w / 2) - (a.x + a.w / 2), dy = (b.y + b.h / 2) - (a.y + a.h / 2);
+  const gapX = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w)), gapY = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h));
+  if (gapX > 0 && gapX >= gapY * 0.9) return dx > 0 ? ['r', 'l'] : ['l', 'r'];
+  if (gapY > 0) return dy > 0 ? ['b', 't'] : ['t', 'b'];
+  return Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? ['r', 'l'] : ['l', 'r']) : (dy > 0 ? ['b', 't'] : ['t', 'b']);
+}
+// On a much bigger node, land the edge opposite the other end instead of at the centre.
+function slide(n, other, side) {
+  const vert = side === 't' || side === 'b';
+  const size = vert ? n.w : n.h, osize = vert ? other.w : other.h;
+  if (size < osize * 1.5) return 0;
+  const d = vert ? (other.x + other.w / 2) - (n.x + n.w / 2) : (other.y + other.h / 2) - (n.y + n.h / 2);
+  return clamp(d, -(size / 2 - 16), size / 2 - 16);
+}
+
+function bezier(a, b, sa, sb, offA, offB = offA) {
+  const p = anchor(a, sa, slide(a, b, sa) + offA), q = anchor(b, sb, slide(b, a, sb) + offB);
+  const k = Math.max(28, Math.hypot(q[0] - p[0], q[1] - p[1]) * 0.4);
+  return { p, q, sa, sb, c1: [p[0] + p[2] * k, p[1] + p[3] * k], c2: [q[0] + q[2] * k, q[1] + q[3] * k] };
+}
+function points(c, n = 30) {
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    out.push([u * u * u * c.p[0] + 3 * u * u * t * c.c1[0] + 3 * u * t * t * c.c2[0] + t * t * t * c.q[0],
+      u * u * u * c.p[1] + 3 * u * u * t * c.c1[1] + 3 * u * t * t * c.c2[1] + t * t * t * c.q[1]]);
+  }
+  return out;
+}
+// How many boxes (other than the two ends) the curve passes through.
+function hits(c, a, b, nodes) {
+  const boxes = nodes.filter(n => n !== a && n !== b && n.type !== 'group' && n.x != null);
+  const pts = points(c).slice(1, -1);
+  return boxes.filter(o => pts.some(([x, y]) => x > o.x + 2 && x < o.x + o.w - 2 && y > o.y + 2 && y < o.y + o.h - 2)).length;
+}
+// How many times two curves cross.
+function crossCount(c, d) {
+  const P = points(c, 16), Q = points(d, 16);
+  const side = (a, b, p) => Math.sign((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]));
+  let n = 0;
+  for (let i = 1; i < P.length; i++) for (let j = 1; j < Q.length; j++)
+    if (side(P[i - 1], P[i], Q[j - 1]) * side(P[i - 1], P[i], Q[j]) < 0 && side(Q[j - 1], Q[j], P[i - 1]) * side(Q[j - 1], Q[j], P[i]) < 0) n++;
+  return n;
+}
+// The default sides, unless another pair that still faces the other end crosses fewer boxes.
+function curve(a, b, pair, nodes) {
+  const auto = autoSides(a, b);
+  const ca = [a.x + a.w / 2, a.y + a.h / 2], cb = [b.x + b.w / 2, b.y + b.h / 2];
+  const dir = { r: [1, 0], l: [-1, 0], t: [0, -1], b: [0, 1] };
+  const faces = (s, from, to) => dir[s][0] * (to[0] - from[0]) + dir[s][1] * (to[1] - from[1]) > 0;
+  let best = null;
+  for (const sa of [auto[0], 'r', 'l', 'b', 't']) for (const sb of [auto[1], 'l', 'r', 't', 'b']) {
+    if ((sa !== auto[0] || sb !== auto[1]) && !(faces(sa, ca, cb) && faces(sb, cb, ca))) continue;
+    const c = bezier(a, b, sa, sb, pair);
+    c.hits = hits(c, a, b, nodes);
+    if (!best || c.hits < best.hits) best = c;
+    if (!best.hits) return best;
+  }
+  return best;
+}
+
+function render() {
+  const v = VIEWS[state.view];
+  svg.innerHTML = '';
+  svg.setAttribute('viewBox', `0 0 ${v.w} ${v.h}`);
+  svg.setAttribute('aria-label', v.question);
+  const defs = mk('defs', {}, svg);
+  for (const [id, cls] of [['ah', 'arrowhead'], ['ahd', 'arrowhead dead']]) {
+    const m = mk('marker', { id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    mk('path', { d: 'M0,0 L10,5 L0,10 z', class: cls }, m);
+  }
+  const byId = Object.fromEntries(v.nodes.map(n => [n.id, n]));
+  const gNodes = mk('g', {}, svg), gEdges = mk('g', {}, svg), gLabels = mk('g', {}, svg);
+  // groups first so they sit behind
+  const order = [...v.nodes].sort((a, b) => (b.type === 'group') - (a.type === 'group'));
+  for (const n of order) drawNode(gNodes, n, v);
+  svg.appendChild(gEdges); svg.appendChild(gLabels);
+  const taken = v.nodes.filter(n => n.type !== 'group').map(n => [n.x, n.y, n.w, n.h]);
+  // Two one-way edges between the same pair are drawn side by side; other edges that leave or enter the same
+  // side of a box are spread along it, ordered by where their other end is.
+  const plan = v.edges.map(e => {
+    const a = byId[e.from], b = byId[e.to];
+    const pair = v.edges.some(x => x.from === e.to && x.to === e.from) ? (e.from < e.to ? -14 : 14) : 0;
+    return { e, a, b, pair, c: curve(a, b, pair, v.nodes), off: [pair, pair] };
+  });
+  const slots = {};
+  for (const p of plan) if (!p.pair) {
+    (slots[p.a.id + p.c.sa] ||= []).push({ p, end: 0, n: p.a, o: p.b, s: p.c.sa });
+    (slots[p.b.id + p.c.sb] ||= []).push({ p, end: 1, n: p.b, o: p.a, s: p.c.sb });
+  }
+  for (const list of Object.values(slots)) {
+    if (list.length < 2) continue;
+    const vert = list[0].s === 't' || list[0].s === 'b';
+    list.sort((u, w) => vert ? (u.o.x + u.o.w / 2) - (w.o.x + w.o.w / 2) : (u.o.y + u.o.h / 2) - (w.o.y + w.o.h / 2));
+    const room = (vert ? list[0].n.w : list[0].n.h) - 24, step = Math.min(18, room / (list.length - 1));
+    list.forEach((u, i) => { u.p.off[u.end] = (i - (list.length - 1) / 2) * step; });
+  }
+  for (const p of plan) {
+    if (p.off[0] || p.off[1]) p.c = bezier(p.a, p.b, p.c.sa, p.c.sb, p.off[0], p.off[1]);
+    drawEdge(gEdges, gLabels, p, v, taken);
+  }
+  svg.appendChild(mk('circle', { class: 'dot', r: 7, cx: -50, cy: -50, id: 'dot' }));
+  svg.classList.toggle('health-on', state.health);
+  svg.classList.toggle('health-off', !state.health);
+  if (state.sel) markSel();
+  chrome();
+}
+
+function drawNode(parent, n, v) {
+  const g = mk('g', { class: `node ${n.type}${n.opens ? ' drill' : ''}`, 'data-id': n.id, tabindex: n.type === 'group' ? -1 : 0, role: 'button', 'aria-label': n.label + (n.opens ? ' (has more inside)' : '') }, parent);
+  const { x, y, w, h } = n;
+  if (n.opens) {
+    const rx = n.type === 'system' ? 18 : 10;
+    mk('rect', { class: 'layer', x: x + 8, y: y + 8, width: w, height: h, rx }, g);
+    mk('rect', { class: 'layer', x: x + 4, y: y + 4, width: w, height: h, rx }, g);
+  }
+  if (n.type === 'store') {
+    const e = 9;
+    mk('path', { class: 'shape', d: `M${x},${y + e} A${w / 2},${e} 0 0 1 ${x + w},${y + e} V${y + h - e} A${w / 2},${e} 0 0 1 ${x},${y + h - e} Z` }, g);
+    mk('path', { class: 'lid', d: `M${x},${y + e} A${w / 2},${e} 0 0 0 ${x + w},${y + e}` }, g);
+  } else {
+    const rx = n.type === 'actor' || n.type === 'port' ? Math.min(h / 2, 28) : n.type === 'system' ? 18 : 10;
+    mk('rect', { class: 'shape', x, y, width: w, height: h, rx }, g);
+  }
+  if (n.type === 'group') {
+    mk('text', { class: 'lbl', x: x + 14, y: y + 24 }, g).textContent = n.label;
+    return;
+  }
+  const big = n.type === 'system';
+  const subLines = n.sub ? wrap(n.sub, Math.floor(w / (big ? 7.4 : 6.6))) : [];
+  const lblLines = wrap(n.label, Math.floor(w / (big ? 13 : 8.4)));
+  const lh = big ? 28 : 18, sh = 15;
+  const hint = n.opens ? 18 : 0;
+  const total = lblLines.length * lh + subLines.length * sh + (subLines.length ? 4 : 0) + (hint ? hint + 6 : 0);
+  let ty = y + h / 2 - total / 2 + lh * 0.72;
+  for (const l of lblLines) { mk('text', { class: 'lbl', x: x + w / 2, y: ty, 'text-anchor': 'middle' }, g).textContent = l; ty += lh; }
+  for (const l of subLines) { mk('text', { class: 'sub', x: x + w / 2, y: ty - 2, 'text-anchor': 'middle' }, g).textContent = l; ty += sh; }
+  if (n.opens) mk('text', { class: 'open', x: x + w / 2, y: ty + 8, 'text-anchor': 'middle' }, g).textContent = 'Look inside →';
+  drawIcon(g, n);
+  if (n.opens) {
+    const db = mk('g', { class: 'drill-btn' }, g);
+    const cx = x + w - 2, cy = y + h - 2;
+    mk('circle', { cx, cy, r: 13 }, db);
+    mk('path', { d: `M${cx - 5},${cy} H${cx + 5} M${cx},${cy - 5} V${cy + 5}` }, db);
+    mk('title', {}, db).textContent = 'Zoom in';
+    db.addEventListener('click', ev => { ev.stopPropagation(); if (state.walk < 0) zoomInto(n); });
+  }
+  // health
+  const hl = healthOf(state.view, n);
+  if (hl.length) {
+    const sev = worst(hl);
+    g.classList.add('h-' + sev);
+    const b = mk('g', { class: 'badge' }, g);
+    const color = sev === 'broken' ? 'var(--bad)' : sev === 'warn' ? 'var(--warn)' : 'var(--unused)';
+    mk('circle', { cx: x + w - 2, cy: y + 2, r: 12, style: `fill:${color}` }, b);
+    const glyph = n.opens ? String(hl.length) : sev === 'broken' ? '×' : sev === 'warn' ? '!' : '∅';
+    mk('text', { x: x + w - 2, y: y + 3 }, b).textContent = glyph;
+  }
+  g.addEventListener('click', () => onNode(n));
+  g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onNode(n); } });
+}
+
+function drawIcon(g, n) {
+  const ix = n.x + (n.type === 'actor' || n.type === 'port' ? 16 : 10), iy = n.y + (n.type === 'store' ? 16 : 9);
+  const P = {
+    actor: `M${ix + 7},${iy + 2.5} m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 M${ix + 1.5},${iy + 14} Q${ix + 7},${iy + 6} ${ix + 12.5},${iy + 14}`,
+    process: `M${ix + 2},${iy + 3} L${ix + 7},${iy + 8} L${ix + 2},${iy + 13} M${ix + 8},${iy + 3} L${ix + 13},${iy + 8} L${ix + 8},${iy + 13}`,
+    store: `M${ix + 1},${iy + 3} A6,2.2 0 0 1 ${ix + 13},${iy + 3} A6,2.2 0 0 1 ${ix + 1},${iy + 3} V${iy + 12} A6,2.2 0 0 0 ${ix + 13},${iy + 12} V${iy + 3} M${ix + 1},${iy + 7.5} A6,2.2 0 0 0 ${ix + 13},${iy + 7.5}`,
+    port: `M${ix + 1},${iy + 8} H${ix + 13} M${ix + 9},${iy + 4} L${ix + 13},${iy + 8} L${ix + 9},${iy + 12}`,
+    unused: `M${ix + 7},${iy + 8} m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 M${ix + 2.8},${iy + 12.2} L${ix + 11.2},${iy + 3.8}`
+  };
+  const d = P[n.type === 'system' ? 'process' : n.type];
+  if (d) mk('path', { class: 'icon', d }, g);
+}
+
+const overlaps = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+function drawEdge(gE, gL, { e, a, b, c }, v, taken) {
+  const { p, q, c1, c2 } = c;
+  const d = `M${p[0]},${p[1]} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${q[0]},${q[1]}`;
+  const dead = a.type === 'unused' || b.type === 'unused';
+  const g = mk('g', { class: 'edge' + (dead ? ' dead' : '') + (e.inferred ? ' inferred' : ''), 'data-id': `${e.from}>${e.to}` }, gE);
+  const mark = dead ? 'url(#ahd)' : 'url(#ah)';
+  const base = mk('path', { class: 'base', d, 'marker-end': mark }, g);
+  if (e.both) base.setAttribute('marker-start', mark);
+  mk('path', { class: 'flow', d }, g);
+  if (e.both) mk('path', { class: 'flow', d, style: 'animation-direction: reverse; opacity:.45' }, g);
+  if (e.label) {
+    const len = base.getTotalLength(), mid = base.getPointAtLength(len / 2);
+    const lg = mk('g', { class: 'edge' + (dead ? ' dead' : ''), 'data-id': `${e.from}>${e.to}` }, gL);
+    const t = mk('text', { x: mid.x, y: mid.y }, lg);
+    t.textContent = e.label;
+    const bb = t.getBBox();
+    const box = dy => [bb.x - 5, bb.y - 2 + dy, bb.width + 10, bb.height + 4];
+    // Nudge the label off other labels and boxes, along the edge's normal.
+    const vertical = Math.abs(p[3]) > 0 && Math.abs(q[3]) > 0;
+    let off = 0;
+    for (const s of [0, -18, 18, -36, 36, -54, 54]) {
+      const r = vertical ? [bb.x - 5 + s * 3, bb.y - 2, bb.width + 10, bb.height + 4] : box(s);
+      if (!taken.some(o => overlaps(r, o))) { off = s; break; }
+    }
+    const dx = vertical ? off * 3 : 0, dy = vertical ? 0 : off;
+    t.setAttribute('x', mid.x + dx); t.setAttribute('y', mid.y + dy);
+    const r = [bb.x - 5 + dx, bb.y - 2 + dy, bb.width + 10, bb.height + 4];
+    taken.push(r);
+    lg.insertBefore(mk('rect', { class: 'pill', x: r[0], y: r[1], width: r[2], height: r[3], rx: 5 }), t);
+  }
+}
+
+/* ---- Panel ---- */
+function flowsFor(n) {
+  const v = VIEWS[state.view], name = id => short(v.nodes.find(x => x.id === id).label);
+  const ins = [], outs = [];
+  const mine = id => id === n.id || (n.group && id === n.group);
+  for (const e of v.edges) {
+    if (mine(e.to)) ins.push([name(e.from), e.label]);
+    if (mine(e.from)) outs.push([name(e.to), e.label]);
+    if (e.both && mine(e.from)) ins.push([name(e.to), e.label]);
+    if (e.both && mine(e.to)) outs.push([name(e.from), e.label]);
+  }
+  return { ins, outs };
+}
+const flowList = (arr, arrow) => `<ul class="flows">${arr.map(([who, what]) => `<li><span class="arrow">${arrow}</span><span><b>${esc(who)}</b> <span class="what">· ${esc(what || '')}</span></span></li>`).join('')}</ul>`;
+const SEV = { broken: 'Broken', warn: 'Needs attention', unused: 'Not connected' };
+const probHtml = (h, link) => `<div class="prob ${h.sev}${link ? ' link' : ''}" ${link ? `data-view="${h.view}" data-node="${h.id}" tabindex="0"` : ''}>
+  <span class="sev">${SEV[h.sev]}${link ? ' · ' + esc(short(h.node)) : ''}${h.source === 'plan' ? ' · plan-only, not re-checked' : ''}</span>
+  <b>${esc(h.title)}</b>${h.detail ? `<span>${esc(h.detail)}</span>` : ''}</div>`;
+const TYPE = { actor: 'Outside ' + APP, process: 'Step', store: 'Data store', system: 'The app', port: 'Link to another view', unused: 'Not connected', group: 'Group' };
+const at = e => `${e.file}:${e.line}`;
+function evidenceOf(n) {
+  const v = VIEWS[state.view], out = (n.evidence || []).map(at);
+  for (const e of v.edges) {
+    if (e.from !== n.id && e.to !== n.id) continue;
+    const ev = e.inferred && !(e.evidence || []).length ? 'inferred, not cited' : (e.evidence || []).map(at).join(', ');
+    if (ev) out.push(`“${e.label || 'flow'}”: ${ev}`);
+  }
+  for (const h of n.health || []) {
+    const src = h.source === 'plan' ? 'plan-only, not re-checked' : h.source === 'live' ? 'live database, row counts' : 'code';
+    const ev = (h.evidence || []).map(at).join(', ');
+    out.push(`${h.title} (${src})${ev ? ': ' + ev : ''}`);
+  }
+  return out;
+}
+
+function renderPanel() {
+  const v = VIEWS[state.view];
+  if (state.walk >= 0) return renderWalk();
+  const n = state.sel && v.nodes.find(x => x.id === state.sel);
+  if (!n) {
+    const probs = v.nodes.flatMap(x => healthOf(state.view, x));
+    panel.innerHTML = `<div><h3>Level ${v.level} · ${esc(v.title)}</h3><h2>${esc(v.question)}</h2></div>
+      <p>${rich(v.intro)}</p>
+      <p class="hint">Click a box to read about it. Click it again, or use “Look inside”, to zoom in.</p>
+      ${state.health ? `<div><h3>Problems here (${probs.length})</h3><div class="problist">${probs.length ? probs.map(h => probHtml(h, true)).join('') : '<p class="hint">Nothing flagged at this level.</p>'}</div></div>`
+        : `<div><button id="pShow">Show ${probs.length} problem${probs.length === 1 ? '' : 's'} at this level</button></div>`}
+      ${Object.keys(GL).length ? `<details><summary>Words used here</summary><dl class="gloss">${Object.entries(GL).map(([k, d]) => `<dt>${esc(k)}</dt><dd>${esc(d)}</dd>`).join('')}</dl></details>` : ''}
+      ${M.meta.note ? `<p class="note">${rich(M.meta.note)}</p>` : ''}`;
+    const b = document.getElementById('pShow'); if (b) b.onclick = toggleHealth;
+    wireProbs(); return;
+  }
+  const { ins, outs } = flowsFor(n);
+  const hl = healthOf(state.view, n);
+  const ev = evidenceOf(n);
+  panel.innerHTML = `<div><span class="chip">${TYPE[n.type]}</span></div>
+    <h2>${esc(short(n.label))}</h2>
+    <p>${rich(n.does || '')}</p>
+    ${n.when ? `<p class="when"><b>When:</b> ${esc(n.when)}</p>` : ''}
+    ${ins.length ? `<div><h3>Takes in</h3>${flowList(ins, '←')}</div>` : ''}
+    ${outs.length ? `<div><h3>Sends out</h3>${flowList(outs, '→')}</div>` : ''}
+    ${hl.length ? `<div><h3>${n.opens ? `Problems inside (${hl.length})` : 'Problems'}</h3><div class="problist">${hl.map(h => probHtml(h, !!n.opens)).join('')}</div></div>` : ''}
+    <div class="row">${n.opens ? `<button class="primary" id="pOpen">Look inside</button>` : ''}${n.go ? `<button class="primary" id="pGo">Go to ${esc(VIEWS[n.go].title)}</button>` : ''}<button id="pBack">Close</button></div>
+    ${ev.length ? `<details><summary>How do we know?</summary>${ev.map(x => `<code>${esc(x)}</code>`).join('')}</details>` : ''}`;
+  const o = document.getElementById('pOpen'); if (o) o.onclick = () => zoomInto(n);
+  const gb = document.getElementById('pGo'); if (gb) gb.onclick = () => crossTo(n.go);
+  document.getElementById('pBack').onclick = () => { state.sel = null; markSel(); renderPanel(); };
+  wireProbs();
+}
+function wireProbs() {
+  panel.querySelectorAll('.prob.link').forEach(el => {
+    const go = () => jumpTo(el.dataset.view, el.dataset.node);
+    el.onclick = go; el.onkeydown = e => { if (e.key === 'Enter') go(); };
+  });
+}
+
+/* ---- Interaction ---- */
+function onNode(n) {
+  if (state.walk >= 0) return;
+  if (n.type === 'group') return;
+  if (n.go && state.sel === n.id) return crossTo(n.go);
+  if (n.opens && state.sel === n.id) return zoomInto(n);
+  state.sel = n.id; markSel(); renderPanel();
+}
+function markSel() { svg.querySelectorAll('.node').forEach(g => g.classList.toggle('sel', g.dataset.id === state.sel)); }
+
+function setVB(b) { svg.setAttribute('viewBox', b.join(' ')); }
+function tween(from, to, ms, done) {
+  if (reduce) { setVB(to); done && done(); return; }
+  const t0 = performance.now();
+  (function f(t) {
+    const p = Math.min(1, (t - t0) / ms), e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    setVB(from.map((v, i) => v + (to[i] - v) * e));
+    p < 1 ? requestAnimationFrame(f) : done && done();
+  })(t0);
+}
+const full = v => [0, 0, v.w, v.h];
+const boxOf = n => [n.x - 30, n.y - 30, n.w + 60, n.h + 60];
+
+function zoomInto(n) {
+  const v = VIEWS[state.view];
+  svg.classList.add('fade');
+  tween(full(v), boxOf(n), 420, () => {
+    state.view = n.opens; state.sel = null; render(); renderPanel(); hashSet();
+    svg.classList.remove('fade');
+  });
+}
+function chainOf(vid) { const c = []; let cur = vid; while (cur) { c.unshift(cur); cur = PARENT[cur] && PARENT[cur].view; } return c; }
+function zoomOutTo(parentView) {
+  const chain = chainOf(state.view), pv = VIEWS[parentView];
+  const n = pv.nodes.find(x => x.opens && chain.includes(x.opens));
+  svg.classList.add('fade');
+  setTimeout(() => {
+    state.view = parentView; state.sel = n ? n.id : null; render(); renderPanel(); hashSet();
+    if (n) setVB(boxOf(n));
+    requestAnimationFrame(() => { svg.classList.remove('fade'); tween(n ? boxOf(n) : full(pv), full(pv), 420); });
+  }, reduce ? 0 : 200);
+}
+function crossTo(vid) {
+  if (PARENT[state.view] && PARENT[state.view].view === vid) return zoomOutTo(vid);
+  svg.classList.add('fade');
+  setTimeout(() => { state.view = vid; state.sel = null; render(); renderPanel(); hashSet(); svg.classList.remove('fade'); }, reduce ? 0 : 220);
+}
+function jumpTo(vid, nid) {
+  if (vid === state.view) { state.sel = nid; markSel(); renderPanel(); return; }
+  svg.classList.add('fade');
+  setTimeout(() => { state.view = vid; state.sel = nid; render(); renderPanel(); hashSet(); svg.classList.remove('fade'); }, reduce ? 0 : 220);
+}
+
+const LEVEL_NAMES = ['Context', 'Journey', 'Inside', 'Detail'];
+const MAX_LEVEL = Math.max(...M.views.map(v => v.level));
+function chrome() {
+  const v = VIEWS[state.view];
+  const chain = chainOf(state.view);
+  const crumbs = document.getElementById('crumbs');
+  crumbs.innerHTML = chain.map((c, i) => i === chain.length - 1 ? `<span class="here">${esc(VIEWS[c].title)}</span>` : `<a data-v="${c}" tabindex="0">${esc(VIEWS[c].title)}</a><span aria-hidden="true">›</span>`).join(' ');
+  crumbs.querySelectorAll('a').forEach(a => { const go = () => { stopWalk(); zoomOutToChain(a.dataset.v); }; a.onclick = go; a.onkeydown = e => { if (e.key === 'Enter') go(); }; });
+  const openers = v.nodes.filter(n => n.opens);
+  const lv = document.getElementById('levels');
+  lv.innerHTML = Array.from({ length: MAX_LEVEL + 1 }, (_, i) => `L${i} ${LEVEL_NAMES[i] || 'Detail'}`).map((l, i) => {
+    const target = i < chain.length ? chain[i] : (i === chain.length && openers.length === 1 ? openers[0].opens : null);
+    const on = i === v.level;
+    const tip = on ? 'You are here' : target ? `Go to ${VIEWS[target].title}` : 'Pick a stage to go deeper';
+    return `<button class="${on ? 'on' : ''}" data-t="${target || ''}" ${on || !target ? 'disabled' : ''} title="${esc(tip)}" ${on ? 'aria-current="true"' : ''}>${l}</button>`;
+  }).join('');
+  lv.querySelectorAll('button[data-t]:not(:disabled)').forEach(b => b.onclick = () => navTo(b.dataset.t));
+  document.getElementById('question').textContent = v.question;
+  document.getElementById('hint').textContent = openers.length ? 'Click a box, then “Look inside” to zoom in.' : v.nodes.some(n => n.type === 'port') ? 'Dotted pills link to the next or previous stage.' : '';
+}
+function zoomOutToChain(target) {
+  if (target !== state.view && chainOf(state.view).includes(target)) return zoomOutTo(target);
+  crossTo(target);
+}
+function navTo(target) {
+  stopWalk();
+  if (!target || target === state.view) return;
+  const child = VIEWS[state.view].nodes.find(n => n.opens === target);
+  if (child) return zoomInto(child);
+  zoomOutToChain(target);
+}
+
+/* ---- Walkthrough ---- */
+let dotRaf = 0;
+const walkOf = () => WALKS.find(w => w.id === state.walkId);
+function startWalk(w) {
+  state.sel = null; state.walkId = w.id;
+  const begin = () => { state.walk = 0; showStep(); };
+  if (state.view !== w.view) {
+    svg.classList.add('fade');
+    setTimeout(() => { state.view = w.view; render(); hashSet(); svg.classList.remove('fade'); begin(); }, reduce ? 0 : 220);
+  } else begin();
+}
+function stopWalk() {
+  if (state.walk < 0) return;
+  state.walk = -1; cancelAnimationFrame(dotRaf);
+  svg.classList.remove('focus-mode');
+  svg.querySelectorAll('.lit').forEach(x => x.classList.remove('lit'));
+  const d = document.getElementById('dot'); if (d) d.setAttribute('cx', -50);
+  renderPanel();
+}
+function showStep() {
+  const s = walkOf().steps[state.walk];
+  svg.classList.add('focus-mode');
+  svg.querySelectorAll('.lit').forEach(x => x.classList.remove('lit'));
+  cancelAnimationFrame(dotRaf);
+  const dot = document.getElementById('dot'); dot.setAttribute('cx', -50);
+  if (s.node) svg.querySelectorAll(`.node[data-id="${s.node}"]`).forEach(x => x.classList.add('lit'));
+  if (s.edge) {
+    const [f, t] = s.edge.split('>');
+    // A walk may name a two-way edge from either end.
+    const id = svg.querySelector(`.edge[data-id="${s.edge}"]`) ? s.edge : `${t}>${f}`;
+    const rev = id === s.edge ? !!s.rev : !s.rev;
+    svg.querySelectorAll(`[data-id="${id}"], .node[data-id="${f}"], .node[data-id="${t}"]`).forEach(x => x.classList.add('lit'));
+    const path = svg.querySelector(`.edge[data-id="${id}"] path.base`);
+    const len = path.getTotalLength();
+    if (reduce) { const p = path.getPointAtLength(rev ? 0 : len); dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y); }
+    else {
+      const t0 = performance.now();
+      const f2 = t => { const p = ((t - t0) % 1800) / 1400; const c = Math.min(1, p); const pt = path.getPointAtLength((rev ? 1 - c : c) * len); dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y); dotRaf = requestAnimationFrame(f2); };
+      dotRaf = requestAnimationFrame(f2);
+    }
+  }
+  renderWalk();
+}
+function renderWalk() {
+  const w = walkOf(), steps = w.steps, s = steps[state.walk], i = state.walk;
+  panel.innerHTML = `<div class="walk">
+    <h3>${esc(w.title)}</h3>
+    <span class="count">Step ${i + 1} of ${steps.length}</span>
+    <div class="bar"><i style="width:${(i + 1) / steps.length * 100}%"></i></div>
+    <h2>${esc(s.title || `Step ${i + 1}`)}</h2>
+    <p>${rich(s.text)}</p>
+    <div class="row"><button id="wPrev" ${i === 0 ? 'disabled' : ''}>Back</button><button class="primary" id="wNext">${i === steps.length - 1 ? 'Finish' : 'Next'}</button><button id="wExit">Exit</button></div>
+    <p class="hint">Use the arrow keys to step.</p></div>`;
+  document.getElementById('wPrev').onclick = () => { if (state.walk > 0) { state.walk--; showStep(); } };
+  document.getElementById('wNext').onclick = () => { if (state.walk < steps.length - 1) { state.walk++; showStep(); } else stopWalk(); };
+  document.getElementById('wExit').onclick = stopWalk;
+}
+document.addEventListener('keydown', e => {
+  if (state.walk < 0) return;
+  const last = walkOf().steps.length - 1;
+  if (e.key === 'ArrowRight' && state.walk < last) { state.walk++; showStep(); }
+  if (e.key === 'ArrowLeft' && state.walk > 0) { state.walk--; showStep(); }
+  if (e.key === 'Escape') stopWalk();
+});
+
+/* ---- Controls ---- */
+function toggleHealth() {
+  state.health = !state.health;
+  const b = document.getElementById('btnHealth'); b.setAttribute('aria-pressed', state.health);
+  svg.classList.toggle('health-on', state.health); svg.classList.toggle('health-off', !state.health);
+  if (state.walk < 0) renderPanel();
+}
+document.getElementById('btnHealth').onclick = toggleHealth;
+document.getElementById('btnFlow').onclick = e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', on); svg.classList.toggle('flow-off', !on); };
+const controls = document.getElementById('controls');
+WALKS.forEach((w, i) => {
+  const b = document.createElement('button');
+  if (i === 0) b.className = 'primary';
+  b.textContent = w.title;
+  b.onclick = () => state.walk >= 0 ? stopWalk() : startWalk(w);
+  controls.insertBefore(b, document.getElementById('btnHealth'));
+});
+const sha = (M.meta.commit || '').slice(0, 8);
+document.getElementById('kicker').textContent = [M.meta.repo, sha && `commit ${sha}`, M.meta.generated].filter(Boolean).join(' · ');
+document.getElementById('title').textContent = `How ${APP} works`;
+document.getElementById('lgActor').textContent = 'Outside ' + APP;
+
+function hashSet() { try { history.replaceState(null, '', '#' + state.view); } catch (e) {} }
+const start = (location.hash || '').slice(1);
+if (VIEWS[start]) state.view = start;
+addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS[h] && h !== state.view) { stopWalk(); crossTo(h); } });
+(async () => {
+  try {
+    const elk = new ELK();
+    for (const v of M.views) await layoutView(v, elk);
+  } catch (err) {
+    panel.innerHTML = `<p class="prob broken"><b>Could not lay out the diagram.</b><span>${esc(err.message || err)}. The layout library loads from cdn.jsdelivr.net; check the connection.</span></p>`;
+    return;
+  }
+  render(); renderPanel();
+})();
+</script>
+</body>
+</html>

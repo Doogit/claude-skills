@@ -18,14 +18,14 @@ function Install-Piece([string]$Source, [string]$Destination) {
   }
 }
 $required = @()
-if ($Target -in @("claude", "all")) { $required += @("skills/dynamic-workflows-plan", "skills/dynamic-workflows-codex", "workflows/dynamic-workflows-codex.js", "agents/codex-worker.md") }
+if ($Target -in @("claude", "all")) { $required += @("skills/dynamic-workflows-plan", "skills/dynamic-workflows-codex", "skills/dataflow-diagram", "workflows/dynamic-workflows-codex.js", "agents/codex-worker.md") }
 if ($Target -in @("codex", "all")) { $required += @("codex/skills/dynamic-workflows-codex", "codex/skills/session-orchestration") }
 foreach ($rel in $required) {
   if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot $rel))) { throw "Package missing $rel. Choose the matching target or use the full repository." }
 }
 if ($Target -in @("claude", "all")) {
   $claudeDest = if ($env:CLAUDE_HOME) { $env:CLAUDE_HOME } else { Join-Path $HOME ".claude" }
-  foreach ($rel in @("skills/dynamic-workflows-plan", "skills/dynamic-workflows-codex", "workflows/dynamic-workflows-codex.js", "agents/codex-worker.md")) {
+  foreach ($rel in @("skills/dynamic-workflows-plan", "skills/dynamic-workflows-codex", "skills/dataflow-diagram", "workflows/dynamic-workflows-codex.js", "agents/codex-worker.md")) {
     Install-Piece (Join-Path $PSScriptRoot $rel) (Join-Path $claudeDest $rel)
   }
 }

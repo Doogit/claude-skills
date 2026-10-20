@@ -1,0 +1,11 @@
+CREATE TABLE items (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE sync_log (
+  id INTEGER PRIMARY KEY,
+  count INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS old_cache (k TEXT);

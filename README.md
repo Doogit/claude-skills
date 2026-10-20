@@ -1,7 +1,8 @@
 # Workflow skills for Claude Code and Codex
 
 The skills I use to plan and run work across coding agents. Refreshed from my installed
-files on September 8, 2026, with the public adaptations listed below.
+files on September 8, 2026 (`dataflow-diagram` added October 20, 2026), with the public
+adaptations listed below.
 
 The write-up is at [doogit.com](https://doogit.com/posts/claude-conducts-codex-builds/).
 
@@ -11,6 +12,7 @@ The write-up is at [doogit.com](https://doogit.com/posts/claude-conducts-codex-b
 |---|---|
 | Claude: `skills/dynamic-workflows-plan/` | Adds dispatch contracts and dependency gates to a plan produced with the separately installed `ce-plan` skill. |
 | Claude: `skills/dynamic-workflows-codex/`, `workflows/`, `agents/` | Opus decomposes; a Haiku shim calls `codex exec`; Sonnet reviews. Terra/medium implements, high effort handles repairs. A two-task pilot precedes full execution. Passing tasks are committed on separate branches; nothing is pushed or merged. |
+| Claude: `skills/dataflow-diagram/` | Draws an interactive data flow diagram of an app, from one-box context down to each stage, with a layer for broken or unused parts. Every claim is checked against code. |
 | Native Codex: `codex/skills/dynamic-workflows-codex/` | Executes durable plans through native Codex workers. Uses available agent routing and tools, with optional bounded pilots and worktree-only delivery by default. |
 | Native Codex: `codex/skills/session-orchestration/` | Coordinates a session's planning, worker scope, review, and delivery. |
 
@@ -60,6 +62,11 @@ copy the contents of `codex/skills/` into `~/.agents/skills/`.
 - The bridge uses unattended `approval_policy="never"` with `workspace-write`. This
   cannot grant permissions. Authorize the intended work before launching; denied actions
   stop for resolution. The native workflow follows its own authorization contract.
+- `dataflow-diagram` needs Node 24 and has no npm dependencies. Its inventory reads JS/TS in depth;
+  other languages get files and SQL tables only. Optional live row counts use Node's built-in
+  `node:sqlite` (it prints an experimental warning) or a `better-sqlite3` from the target repo
+  (`--sqlite-module`). The generated `index.html` fetches `elkjs@0.9.3` from cdn.jsdelivr.net and
+  fonts from Google Fonts when opened. Self-test: `node --test "test/*.test.mjs"` from the skill folder.
 - A diff review is not a passing build. Run actual project checks in each task worktree.
   With multiple dependencies, the bridge provides ordering but does not combine their
   branches automatically. Integration and merge remain explicit steps.
@@ -77,6 +84,12 @@ configuration, dependency handling, and review flow, with these changes for shar
 - Machine-specific hook/config claims and a private component name were removed from
   the reference. Historical CLI evidence is labeled as historical; planning examples
   are labeled as templates, and the missing `ce-plan` prerequisite is explicit.
+- `dataflow-diagram`: the design spec, a fact-check log, a worked example and a test tied to the
+  private app it was first run on are not shipped. `SKILL.md` points at `lib/verify.mjs` and the
+  test fixture model instead of the spec. Rules that assumed my setup (a session scratchpad, a
+  specific browser extension, Artifact publishing, a fixed reviewer model) are now general, the
+  examples use neutral names, and unchecked claims about the first run are softened. Scripts are
+  unchanged apart from one comment.
 
 These are instruction and packaging checks, not a new paid end-to-end agent benchmark.
 The [export manifest](EXPORT-MANIFEST.json) records hashes of both the installed inputs
@@ -86,7 +99,7 @@ and the shipped files so the adaptations can be audited.
 
 `python scripts/build_bundles.py --output <directory>` creates two reproducible archives:
 
-- `dynamic-workflows-skills.zip`: the Claude package.
+- `dynamic-workflows-skills.zip`: the Claude package (includes `dataflow-diagram`).
 - `dynamic-workflows-codex-skills.zip`: the native Codex package.
 
 Both include this README, license, manifest, and installers. Select the archive's target
